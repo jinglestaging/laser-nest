@@ -1,0 +1,896 @@
+---
+alwaysApply: true
+---
+# NestJS Backend API Development Guide
+
+## Tech Stack
+- **NestJS** - Progressive Node.js framework for building scalable server-side applications
+- **TypeScript** - Static type checking and enhanced developer experience
+- **Supabase** - Open source Firebase alternative with PostgreSQL database
+- **Supabase Auth** - Built-in authentication and authorization
+- **Stripe** - Payment processing integration
+- **Nodemailer** - Email sending capabilities
+- **Class Validator & Transformer** - Request/response validation and transformation
+
+## Project Overview
+
+This backend API application serves as a scalable server-side solution for managing users, authentication, billing, notifications, and related functionalities. Designed for web services or SaaS platforms with Supabase as the primary database and authentication provider.
+
+## ⚠️ CRITICAL RESTRICTION - Users Module
+
+**IMPORTANT**: The `/users` module is **LOCKED** and cannot be modified:
+
+- ❌ **DO NOT** add new tables to `/users` module
+- ❌ **DO NOT** change existing `/users` route responses
+- ❌ **DO NOT** edit existing `/users` database queries
+- ❌ **DO NOT** add new routes to `/users` controller
+- ❌ **DO NOT** modify existing `/users` service methods
+
+**Rationale**: The users module serves as the core foundation for authentication and user management. Any modifications could break existing integrations, authentication flows, and dependent services.
+
+## 📋 MANDATORY Database Schema Requirements
+
+### Table Naming Conventions
+
+**ALL tables and columns MUST follow these exact patterns:**
+
+#### 1. Table Names
+- ✅ Use **lowercase with underscores**: `user_profiles`, `deposit_transactions`
+- ❌ NO camelCase like `userProfiles`
+- ❌ NO PascalCase like `UserProfiles`
+
+**Example**:
+```sql
+-- ✅ Correct
+CREATE TABLE user_profiles (...);
+-- ❌ Wrong
+CREATE TABLE userProfiles (...);
+```
+
+#### 2. Column Naming Convention
+- ✅ ALL columns must use **lowercase with underscores**: `user_id`, `tx_id`, `created_at`
+- ❌ NO camelCase like `userId` or `txId`
+- ❌ NO PascalCase like `UserId`
+
+**Example**:
+```sql
+-- ✅ Correct
+CREATE TABLE deposits (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id),
+  tx_id TEXT UNIQUE NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+-- ❌ Wrong
+CREATE TABLE deposits (
+  id UUID PRIMARY KEY,
+  userId UUID NOT NULL,
+  txId TEXT UNIQUE NOT NULL,
+  createdAt TIMESTAMPTZ,
+  updatedAt TIMESTAMPTZ
+);
+```
+
+#### 3. Primary Keys Pattern
+- ✅ Always use `id UUID PRIMARY KEY DEFAULT uuid_generate_v4()`
+- ✅ Column name must be `id` (lowercase)
+- ✅ Enable `uuid-ossp` extension in your database
+
+**Example**:
+```sql
+-- Enable UUID extension if not already enabled
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- ✅ Use UUID as primary key
+id UUID PRIMARY KEY DEFAULT uuid_generate_v4()
+```
+
+#### 4. Foreign Keys Pattern
+- ✅ Use `_id` suffix for foreign key columns: `user_id`, `product_id`
+- ✅ Specify `REFERENCES table_name(id)` for relationships
+- ✅ Use appropriate `ON DELETE` action (`CASCADE`, `SET NULL`, `RESTRICT`)
+
+**Example**:
+```sql
+-- ✅ Reference other tables with UUID foreign keys
+CREATE TABLE deposits (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  payment_method_id UUID REFERENCES payment_methods(id) ON DELETE SET NULL
+);
+```
+
+#### 5. Timestamps Pattern
+- ✅ Every table should have `created_at TIMESTAMPTZ DEFAULT NOW()`
+- ✅ Every table should have `updated_at TIMESTAMPTZ DEFAULT NOW()`
+- ✅ Create trigger to auto-update `updated_at` on record modification
+
+**Note**: Supabase does **not** handle timestamps automatically for custom tables. You must define them explicitly and set up triggers.
+
+**Example**:
+```sql
+-- ✅ Always include created_at and updated_at
+CREATE TABLE deposits (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  -- other columns...
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create update trigger for updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_deposits_updated_at
+  BEFORE UPDATE ON deposits
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+```
+
+#### 6. Row Level Security (RLS)
+- ✅ Enable RLS on tables containing user-specific data
+- ✅ Create appropriate policies for SELECT, INSERT, UPDATE, DELETE
+- ✅ Use `auth.uid()` to reference the authenticated user
+
+**Example**:
+```sql
+-- ✅ Enable RLS for user data protection
+ALTER TABLE deposits ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for users to access only their own data
+CREATE POLICY "Users can view their own deposits"
+  ON deposits FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own deposits"
+  ON deposits FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+```
+
+### Complete Table Example
+```sql
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Create table
+CREATE TABLE deposits (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  tx_id TEXT UNIQUE NOT NULL,
+  amount NUMERIC(10, 2) NOT NULL,
+  status TEXT DEFAULT 'pending',
+  payment_method_id UUID REFERENCES payment_methods(id) ON DELETE SET NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create indexes for performance
+CREATE INDEX idx_deposits_user_id ON deposits(user_id);
+CREATE INDEX idx_deposits_tx_id ON deposits(tx_id);
+CREATE INDEX idx_deposits_status ON deposits(status);
+
+-- Enable RLS
+ALTER TABLE deposits ENABLE ROW LEVEL SECURITY;
+
+-- Create policies
+CREATE POLICY "Users can view their own deposits"
+  ON deposits FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own deposits"
+  ON deposits FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- Optional: Add for UPDATE and DELETE if needed
+CREATE POLICY "Users can update their own deposits"
+  ON deposits FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own deposits"
+  ON deposits FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Create updated_at trigger
+CREATE TRIGGER update_deposits_updated_at
+  BEFORE UPDATE ON deposits
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+```
+
+### Database Schema Validation Checklist
+
+Before creating any table, ensure:
+
+- [ ] Table name uses `snake_case` (lowercase with underscores)
+- [ ] All column names use `snake_case`
+- [ ] Primary key is `id UUID PRIMARY KEY DEFAULT uuid_generate_v4()`
+- [ ] Foreign keys use `_id` suffix and proper `REFERENCES`
+- [ ] Includes `created_at TIMESTAMPTZ DEFAULT NOW()`
+- [ ] Includes `updated_at TIMESTAMPTZ DEFAULT NOW()`
+- [ ] Created trigger for auto-updating `updated_at`
+- [ ] Enabled RLS if table contains user-specific data
+- [ ] Created appropriate RLS policies
+- [ ] Created indexes for frequently queried columns
+- [ ] Unique constraints properly defined where needed
+
+## Project Structure
+
+### Root Files
+- `src/app.module.ts` - Root module importing all other modules
+- `src/main.ts` - Application bootstrap file with global configuration
+
+### Core Modules (`/src`)
+
+#### Supabase (`/supabase`)
+Core Supabase client integration for database and authentication operations.
+```
+/supabase/
+├── supabase.module.ts
+└── supabase.service.ts
+```
+
+**Supabase Service Setup:**
+```typescript
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+@Injectable()
+export class SupabaseService {
+  private supabase: SupabaseClient;
+
+  constructor(private configService: ConfigService) {
+    this.supabase = createClient(
+      this.configService.get<string>('SUPABASE_URL'),
+      this.configService.get<string>('SUPABASE_SERVICE_KEY'),
+    );
+  }
+
+  getClient(): SupabaseClient {
+    return this.supabase;
+  }
+}
+```
+
+#### Authentication (`/auth`)
+Manages Supabase authentication, authorization, and security guards.
+```
+/auth/
+├── auth.module.ts
+├── auth.controller.ts
+├── auth.service.ts
+├── guards/
+│   └── supabase-auth.guard.ts
+└── decorators/
+    └── get-user.decorator.ts
+```
+
+#### Users (`/users`)
+Handles user profiles and user management operations using Supabase.
+```
+/users/
+├── users.module.ts
+├── users.controller.ts
+├── users.service.ts
+├── dto/
+│   ├── create-user.dto.ts
+│   └── update-user.dto.ts
+└── interfaces/
+    └── user.interface.ts
+```
+
+#### Common (`/common`)
+Shared utilities, decorators, filters, and helpers used across modules.
+```
+/common/
+├── common.module.ts
+├── decorators/
+│   └── user.decorator.ts
+├── filters/
+├── interceptors/
+├── pipes/
+└── utils/
+    └── errors.ts
+```
+
+#### Notifications (`/notifications`)
+Manages user notifications (in-app, push, email integrations).
+```
+/notifications/
+├── notifications.module.ts
+├── notifications.controller.ts
+├── notifications.service.ts
+└── dto/
+    ├── create-notification.dto.ts
+    └── notification-response.dto.ts
+```
+
+#### Email (`/email`)
+Handles transactional emails and template management using Handlebars templates.
+```
+/email/
+├── email.module.ts
+├── email.service.ts
+└── templates/
+    ├── welcome.hbs
+    ├── password-reset.hbs
+    ├── registration-link.hbs
+    └── [custom-template].hbs
+```
+
+#### Stripe (`/stripe`)
+Payment processing, subscription management, and billing operations.
+```
+/stripe/
+├── stripe.module.ts
+├── stripe.controller.ts
+└── stripe.service.ts
+```
+
+#### Upload (`/upload`)
+File upload handling using Supabase Storage.
+```
+/upload/
+├── upload.module.ts
+├── upload.controller.ts
+└── upload.service.ts
+```
+
+#### Health (`/health`)
+Health check endpoints for monitoring and liveness probes.
+```
+/health/
+├── health.module.ts
+└── health.controller.ts
+```
+
+#### Migration (`/migration`)
+Database migrations and seeding using Supabase migrations.
+```
+/migration/
+├── migration.module.ts
+└── migration.service.ts
+```
+
+## Architecture Patterns
+
+### Controller-Service Pattern
+Controllers should contain **only one function linked to a service**. All business logic resides in services.
+
+**Example**:
+```typescript
+// ❌ Avoid: Business logic in controller
+@Controller('users')
+export class UsersController {
+  @Get(':id')
+  async findUser(@Param('id') id: string) {
+    const { data: user, error } = await this.supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+}
+
+// ✅ Correct: Delegate to service
+@Controller('users')
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.usersService.findOne(id);
+  }
+}
+```
+
+### Service Implementation with Supabase
+Services contain all business logic and database interactions using Supabase client.
+
+**Example**:
+```typescript
+@Injectable()
+export class UsersService {
+  constructor(private readonly supabaseService: SupabaseService) {}
+
+  async findOne(id: string): Promise<any> {
+    const supabase = this.supabaseService.getClient();
+    
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
+
+  // Additional methods (findAll, create, update, delete) follow similar patterns
+}
+```
+
+## Supabase Authentication
+
+### Authentication Guard
+Create a guard to validate Supabase JWT tokens:
+
+```typescript
+// guards/supabase-auth.guard.ts
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { SupabaseService } from 'src/supabase/supabase.service';
+
+@Injectable()
+export class SupabaseAuthGuard implements CanActivate {
+  constructor(private readonly supabaseService: SupabaseService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const authHeader = request.headers.authorization;
+
+    if (!authHeader) {
+      throw new UnauthorizedException('No authorization header');
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const supabase = this.supabaseService.getClient();
+
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+
+    if (error || !user) {
+      throw new UnauthorizedException('Invalid token');
+    }
+
+    request.user = user;
+    return true;
+  }
+}
+```
+
+### User Decorator
+Create a decorator to extract user from request:
+
+```typescript
+// decorators/get-user.decorator.ts
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+
+export const GetUser = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.user;
+  },
+);
+```
+
+### Protected Routes
+Use `@UseGuards(SupabaseAuthGuard)` to protect routes and `@GetUser()` decorator to access authenticated user.
+
+**Example**:
+```typescript
+import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { SupabaseAuthGuard } from 'src/auth/guards/supabase-auth.guard';
+import { GetUser } from 'src/auth/decorators/get-user.decorator';
+
+@UseGuards(SupabaseAuthGuard)
+@Controller('users')
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Get('profile')
+  getProfile(@GetUser() user: any) {
+    return this.usersService.findOne(user.id);
+  }
+
+  @Post('update')
+  updateProfile(
+    @GetUser() user: any,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.update(user.id, updateUserDto);
+  }
+}
+```
+
+### Admin Role Protection
+For admin-only routes, implement role checking using Supabase user metadata.
+
+**Guards Example**:
+```typescript
+// guards/roles.guard.ts
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.get<string[]>('roles', context.getHandler());
+    if (!requiredRoles) {
+      return true;
+    }
+
+    const request = context.switchToHttp().getRequest();
+    const user = request.user;
+
+    const hasRole = requiredRoles.some(role => user.user_metadata?.role === role);
+    
+    if (!hasRole) {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    return true;
+  }
+}
+
+// decorators/roles.decorator.ts
+import { SetMetadata } from '@nestjs/common';
+
+export const Roles = (...roles: string[]) => SetMetadata('roles', roles);
+```
+
+**Usage Example**:
+```typescript
+@Controller('admin')
+export class AdminController {
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Get('users')
+  getAllUsers(@GetUser() user: any) {
+    return this.usersService.findAll();
+  }
+
+  @UseGuards(SupabaseAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Delete('users/:id')
+  deleteUser(@Param('id') userId: string) {
+    return this.usersService.delete(userId);
+  }
+}
+```
+
+### Authentication Service
+```typescript
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly emailService: EmailService,
+  ) {}
+
+  async signUp(email: string, password: string) {
+    const supabase = this.supabaseService.getClient();
+    
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    // Send welcome email
+    await this.emailService.sendEmail(
+      email,
+      'Welcome to Our Platform',
+      'welcome',
+      { email },
+    );
+
+    return data;
+  }
+
+  // Additional methods (signIn, signOut, resetPassword) follow similar patterns
+}
+```
+
+## Database Operations with Supabase
+
+### Basic CRUD Operations
+**Example** (DepositsService):
+```typescript
+@Injectable()
+export class DepositsService {
+  constructor(private readonly supabaseService: SupabaseService) {}
+
+  async create(userId: string, createDepositDto: CreateDepositDto) {
+    const supabase = this.supabaseService.getClient();
+    
+    const { data, error } = await supabase
+      .from('deposits')
+      .insert({
+        user_id: userId,
+        ...createDepositDto,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new BadRequestException('Failed to create deposit');
+    }
+
+    return data;
+  }
+
+  // Additional methods (findOne, findAll, update, delete) follow similar patterns
+}
+```
+
+### Advanced Queries
+**Examples**:
+```typescript
+// Joins and relations
+async getDepositWithUser(depositId: string) {
+  const supabase = this.supabaseService.getClient();
+  
+  const { data, error } = await supabase
+    .from('deposits')
+    .select(`
+      *,
+      user:users(id, email, name),
+      payment_method:payment_methods(id, type, last_four)
+    `)
+    .eq('id', depositId)
+    .single();
+
+  if (error) {
+    throw new NotFoundException('Deposit not found');
+  }
+
+  return data;
+}
+
+// Additional examples (Aggregations, Pagination, Search) follow similar patterns
+```
+
+## Supabase Storage for File Uploads
+```typescript
+@Injectable()
+export class UploadService {
+  constructor(private readonly supabaseService: SupabaseService) {}
+
+  async uploadFile(file: Express.Multer.File, userId: string) {
+    const supabase = this.supabaseService.getClient();
+    const fileName = `${userId}/${Date.now()}-${file.originalname}`;
+
+    const { data, error } = await supabase.storage
+      .from('uploads')
+      .upload(fileName, file.buffer, {
+        contentType: file.mimetype,
+      });
+
+    if (error) {
+      throw new BadRequestException('File upload failed');
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('uploads')
+      .getPublicUrl(fileName);
+
+    return { url: publicUrl, path: data.path };
+  }
+
+  // deleteFile follows similar pattern
+}
+```
+
+## Email Template System
+
+[Email template system remains the same as in the original document]
+
+## Validation & DTOs
+
+[DTOs section remains the same as in the original document]
+
+## Error Handling
+
+### Using NestJS Exceptions with Supabase
+```typescript
+@Injectable()
+export class UsersService {
+  constructor(private readonly supabaseService: SupabaseService) {}
+
+  async findOne(id: string) {
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new BadRequestException('Invalid user ID format');
+    }
+
+    const supabase = this.supabaseService.getClient();
+    
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      throw new NotFoundException('User not found');
+    }
+
+    return data;
+  }
+}
+```
+
+### Safe Error Messages
+```typescript
+// src/common/utils/errors.ts
+export function safeErrorMessage(error: any): string {
+  if (error.code === '23505') {
+    return 'Resource already exists';
+  }
+  if (error.code === '23503') {
+    return 'Referenced resource not found';
+  }
+  return error.message || 'An unexpected error occurred';
+}
+```
+
+## Environment Configuration
+
+```env
+# Supabase Configuration
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_KEY=your-service-role-key
+
+# Email Configuration
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM="Your App" <noreply@yourapp.com>
+
+# Application URLs
+FRONTEND_URL=https://your-app.com
+API_URL=https://api.your-app.com
+
+# Stripe (if using)
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+```typescript
+// app.module.ts
+import { ConfigModule } from '@nestjs/config';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
+    SupabaseModule,
+    AuthModule,
+    UsersModule,
+    // ... other modules
+  ],
+})
+export class AppModule {}
+```
+
+## Development Practices
+
+### Module Creation
+Use NestJS CLI for consistent module generation:
+
+```bash
+# Generate complete module structure
+nest g module new-feature
+nest g service new-feature
+nest g controller new-feature
+
+# Generate with test files
+nest g service new-feature --spec
+```
+
+### Security Best Practices
+- Use Supabase RLS policies for data access control
+- Validate JWT tokens on every protected route
+- Use service role key only in backend, never expose to frontend
+- Implement rate limiting
+- Validate all inputs with DTOs
+- Use HTTPS in production
+- Set appropriate CORS policies
+
+### Database Best Practices
+- Create indexes for frequently queried columns
+- Use RLS policies for multi-tenant data isolation
+- Implement proper error handling for database operations
+- Use database functions for complex operations
+- Enable real-time subscriptions only when needed
+- Use transactions for multi-table operations
+
+## Adding New Features
+
+### Step-by-Step Process
+
+1. **Create Database Table in Supabase**
+   - Define the table following all schema requirements.
+   - Enable RLS and create policies.
+   - Set up timestamps and triggers.
+
+   **Example** (for a new `features` table):
+   ```sql
+   -- In Supabase SQL Editor
+   CREATE TABLE features (
+     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+     name TEXT NOT NULL,
+     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+     created_at TIMESTAMPTZ DEFAULT NOW(),
+     updated_at TIMESTAMPTZ DEFAULT NOW()
+   );
+
+   -- Create update trigger for updated_at
+   CREATE OR REPLACE FUNCTION update_updated_at_column()
+   RETURNS TRIGGER AS $$
+   BEGIN
+     NEW.updated_at = NOW();
+     RETURN NEW;
+   END;
+   $$ LANGUAGE plpgsql;
+
+   CREATE TRIGGER update_features_updated_at
+     BEFORE UPDATE ON features
+     FOR EACH ROW
+     EXECUTE FUNCTION update_updated_at_column();
+
+   -- Enable RLS
+   ALTER TABLE features ENABLE ROW LEVEL SECURITY;
+
+   -- Create policies (users manage their own features)
+   CREATE POLICY "Users can view their own features"
+     ON features FOR SELECT
+     USING (auth.uid() = user_id);
+
+   CREATE POLICY "Users can insert their own features"
+     ON features FOR INSERT
+     WITH CHECK (auth.uid() = user_id);
+
+   CREATE POLICY "Users can update their own features"
+     ON features FOR UPDATE
+     USING (auth.uid() = user_id);
+
+   CREATE POLICY "Users can delete their own features"
+     ON features FOR DELETE
+     USING (auth.uid() = user_id);
+
+   -- Create indexes for performance
+   CREATE INDEX idx_features_user_id ON features(user_id);
+   ```
+
+2. **Generate NestJS Module**
+   - Use CLI to create module, service, controller.
+
+3. **Implement Service with CRUD**
+   - Use Supabase client for database operations.
+
+4. **Add Routes to Controller**
+   - Delegate to service; protect with guards if needed.
+
+5. **Add DTOs for Validation**
+   - Use class-validator for input validation.
+
+6. **Integrate with Auth**
+   - Use guards and decorators for user context.
+
+7. **Test and Deploy**
+   - Write unit/integration tests.
+   - Run migrations if needed.

@@ -1,0 +1,184 @@
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Registration Link</title>
+    <style>
+      /* Base styles */
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #f5f5f5;
+        display: flex;
+        justify-content: center;
+      } /* Container */
+      .email-container {
+        max-width: 550px;
+        width: 100%;
+        background-color: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 20px auto;
+      } /* Typography */
+      .text-base {
+        font-family: -apple-system, system-ui, BlinkMacSystemFont;
+        color: #333333;
+        text-align: left;
+      }
+      h1 {
+        font-family: -apple-system, system-ui, BlinkMacSystemFont;
+        color: #333333;
+        text-align: left;
+        font-size: 24px;
+        font-weight: 600;
+        line-height: 24px;
+        padding-bottom: 18px;
+      }
+      p {
+        font-family: -apple-system, system-ui, BlinkMacSystemFont;
+        color: #333333;
+        text-align: left;
+        font-size: 15px;
+        font-weight: 300;
+        line-height: 24px;
+        margin: 0 0 16px 0;
+      } /* Links */
+      a {
+        color: #15c;
+      } /* Footer */
+      .footer {
+        font-family: -apple-system, system-ui, BlinkMacSystemFont;
+        font-size: 12px;
+        font-weight: 300;
+        line-height: 24px;
+        color: #888888;
+      }
+      .footer a {
+        color: #888888;
+        text-decoration: underline;
+      } /* Table styles */
+      .content-padding {
+        padding: 10px 25px;
+        word-break: break-word;
+      }
+      .content-section {
+        padding: 24px 25px;
+        word-break: break-word;
+      }
+      .divider {
+        border-top: solid 1px #e8e8e8;
+        margin: 0 auto;
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='email-container'>
+      <table
+        align='center'
+        border='0'
+        cellpadding='0'
+        cellspacing='0'
+        role='presentation'
+        style='background-color:#ffffff;width:100%;max-width:550px;margin:0 auto;'
+      >
+        <tbody>
+          <!-- Logo Section -->
+          <tr>
+            <td class='content-padding'>
+              <table
+                border='0'
+                cellpadding='0'
+                cellspacing='0'
+                role='presentation'
+                style='border-collapse:collapse;border-spacing:0px'
+              >
+                <tbody>
+                  <tr>
+                    <td style='width:32px'>
+                      <img
+                        alt='01 Webs logo'
+                        src='{{logoUrl}}'
+                        style='border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%'
+                        width='32'
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Content Section -->
+          <tr>
+            <td class='content-section'>
+              <div>
+                <h1>Your 01 Webs registration link</h1>
+                <p>Hi there,</p>
+                <p>Click the link below to register your
+                  {{companyName}}
+                  account. The link is valid for
+                  {{validityPeriod}}.</p>
+                <p><a href='{{registrationLink}}' target='_blank'>Registration
+                    link</a></p>
+                <p><span
+                    style='color:#333333 !important;font-family:-apple-system,system-ui,BlinkMacSystemFont;font-size:15px;font-weight:300'
+                  >If this link does not work, navigate to this URL in your
+                    browser:</span><br />
+                  <a
+                    href='{{registrationLink}}'
+                    target='_blank'
+                  >{{registrationLink}}</a></p>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td class='content-padding'>
+              <div>
+                <p style='margin-bottom:0;color:#333333'>
+                  So long, and thanks for all the fish,<br />
+                  <strong style='font-weight:500'>The
+                    {{companyName}}
+                    Team</strong>
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td class='content-padding'>
+              <p class='divider'></p>
+            </td>
+          </tr>
+
+          <!-- Footer Section -->
+          <tr>
+            <td class='content-padding'>
+              <div class='footer'>
+                &copy;
+                {{currentYear}}
+                <a
+                  href='{{companyWebsite}}'
+                  target='_blank'
+                  style='color:#15c'
+                >01 Webs</a>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td class='content-padding'>
+              <div class='footer'>
+                For questions contact&nbsp;<a
+                  href='mailto:{{supportEmail}}'
+                  target='_blank'
+                >{{supportEmail}}</a>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>

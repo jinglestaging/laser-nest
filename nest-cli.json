@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+ "compilerOptions": {
+    "assets": ["email/templates/**/*", "ai/prompts/**/*"],
+    "watchAssets": true,
+    "deleteOutDir": true
+  }
+}
