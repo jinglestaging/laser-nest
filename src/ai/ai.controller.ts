@@ -1,4 +1,14 @@
-import { Controller, Post, Body, Res, UseGuards, Get, Param, Put, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Res,
+  UseGuards,
+  Get,
+  Param,
+  Put,
+  Delete,
+} from '@nestjs/common';
 import { Response } from 'express';
 import { AiService } from './ai.service';
 import { StreamChatDto } from './dto/stream-chat.dto';
@@ -38,10 +48,7 @@ export class AiController {
 
   @UseGuards(SupabaseAuthGuard)
   @Get('workflows/:id')
-  async getWorkflowById(
-    @GetUser() user: any,
-    @Param('id') workflowId: string,
-  ) {
+  async getWorkflowById(@GetUser() user: any, @Param('id') workflowId: string) {
     return this.aiService.getWorkflowById(user.id, workflowId);
   }
 
@@ -52,15 +59,16 @@ export class AiController {
     @Param('id') workflowId: string,
     @Body() updateWorkflowDto: UpdateWorkflowDto,
   ) {
-    return this.aiService.updateWorkflow(user.id, workflowId, updateWorkflowDto);
+    return this.aiService.updateWorkflow(
+      user.id,
+      workflowId,
+      updateWorkflowDto,
+    );
   }
 
   @UseGuards(SupabaseAuthGuard)
   @Delete('workflows/:id')
-  async deleteWorkflow(
-    @GetUser() user: any,
-    @Param('id') workflowId: string,
-  ) {
+  async deleteWorkflow(@GetUser() user: any, @Param('id') workflowId: string) {
     return this.aiService.deleteWorkflow(user.id, workflowId);
   }
 }

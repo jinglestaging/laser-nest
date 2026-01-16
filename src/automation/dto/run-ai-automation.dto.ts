@@ -1,4 +1,12 @@
-import { IsBoolean, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class RunAiAutomationDto {
   @IsString()
@@ -27,5 +35,3 @@ export class RunAiAutomationDto {
   @Max(50)
   max_steps?: number;
 }
-
-

@@ -42,23 +42,15 @@ Response Limitations
 - Final output MUST BE ONLY valid JSON in this exact format — nothing else (no text, no tags, no explanation):
 
 {
-  "nodes": [
-    {
-      "id": "1",
-      "type": "default",
-      "position": { "x": 250, "y": 0 },
-      "data": {
-        "label": "Short step description",
-        "stepType": "navigate",
-        "params": { "url": "https://example.com" }
-      }
-    }
-    // more nodes...
-  ],
-  "edges": [
-    { "id": "e1-2", "source": "1", "target": "2" }
-    // more edges...
-  ]
+  "prompt": "the current version of the user's task/prompt",
+  "is_ready": true,
+  "clarification_questions": []
+}
+OR if not ready:
+{
+  "prompt": "the current version of the user's task/prompt",
+  "is_ready": false,
+  "clarification_questions": ["Specific question 1?", "Specific question 2?", "Max 4 questions"]
 }
 
 If the JSON is invalid or incomplete, it will be sent back for correction.

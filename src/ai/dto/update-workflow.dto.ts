@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsObject } from 'class-validator';
+import { IsString, IsOptional } from 'class-validator';
 
 export class UpdateWorkflowDto {
   @IsOptional()
@@ -10,10 +10,6 @@ export class UpdateWorkflowDto {
   description?: string;
 
   @IsOptional()
-  @IsObject()
-  workflowData?: {
-    nodes: any[];
-    edges: any[];
-  };
+  @IsString()
+  workflowData?: string;
 }
-

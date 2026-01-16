@@ -1,6 +1,6 @@
 /**
  * Three-Agent Browser Automation Client Example
- * 
+ *
  * This file demonstrates how to use the three-agent system programmatically
  * from a TypeScript/JavaScript application.
  */
@@ -99,10 +99,7 @@ class ThreeAgentAutomationClient {
 
     eventSource.addEventListener('agent_thinking', (event: MessageEvent) => {
       const data = JSON.parse(event.data);
-      callbacks.onAgentThinking?.(
-        data.payload.agent,
-        data.payload.message,
-      );
+      callbacks.onAgentThinking?.(data.payload.agent, data.payload.message);
     });
 
     eventSource.addEventListener('plan_created', (event: MessageEvent) => {
@@ -122,18 +119,12 @@ class ThreeAgentAutomationClient {
 
     eventSource.addEventListener('action_executed', (event: MessageEvent) => {
       const data = JSON.parse(event.data);
-      callbacks.onActionExecuted?.(
-        data.payload.action,
-        data.payload.result,
-      );
+      callbacks.onActionExecuted?.(data.payload.action, data.payload.result);
     });
 
     eventSource.addEventListener('critique_result', (event: MessageEvent) => {
       const data = JSON.parse(event.data);
-      callbacks.onCritiqueResult?.(
-        data.payload.status,
-        data.payload.feedback,
-      );
+      callbacks.onCritiqueResult?.(data.payload.status, data.payload.feedback);
     });
 
     eventSource.addEventListener('frame', (event: MessageEvent) => {
@@ -278,8 +269,10 @@ async function example3_RealTimeScreenshots() {
   client.streamEvents(job.job_id, {
     onFrame: (base64Image, mime) => {
       // In a browser environment, you could display this
-      console.log(`Screenshot received (${mime}): ${base64Image.substring(0, 50)}...`);
-      
+      console.log(
+        `Screenshot received (${mime}): ${base64Image.substring(0, 50)}...`,
+      );
+
       // Browser example:
       // const img = document.createElement('img');
       // img.src = `data:${mime};base64,${base64Image}`;
@@ -409,4 +402,3 @@ if (require.main === module) {
   // example6_MultipleJobs().catch(console.error);
 }
 */
-

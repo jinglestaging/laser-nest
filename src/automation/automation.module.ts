@@ -9,5 +9,3 @@ import { OpenAiModule } from '../openai/openai.module';
   providers: [AutomationService],
 })
 export class AutomationModule {}
-
-

@@ -11,5 +11,3 @@ export class RunAutomationDto {
   @MaxLength(200)
   query?: string;
 }
-
-

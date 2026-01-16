@@ -12,9 +12,10 @@ interface ResponseData {
 }
 
 @Injectable()
-export class TransformInterceptor
-  implements NestInterceptor<ResponseData, ResponseData>
-{
+export class TransformInterceptor implements NestInterceptor<
+  ResponseData,
+  ResponseData
+> {
   private recursivelyTransform(obj: unknown, seen = new WeakSet()): unknown {
     if (!obj) return obj;
 

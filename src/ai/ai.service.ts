@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { openai } from '@ai-sdk/openai';
@@ -20,16 +24,26 @@ export class AiService {
     this.systemPrompt = this.loadSystemPrompts();
   }
 
-  async streamChat(messages: any[], res: Response, userId?: string): Promise<void> {
+  async streamChat(
+    messages: any[],
+    res: Response,
+    userId?: string,
+  ): Promise<void> {
     const model = this.getModel();
 
     // Debug logging to see what backend receives
-    console.log('🔍 Backend received messages:', JSON.stringify(messages, null, 2));
+    console.log(
+      '🔍 Backend received messages:',
+      JSON.stringify(messages, null, 2),
+    );
     console.log('📦 Using model:', model);
 
     // Transform messages from OpenAI format to AI SDK format
     const transformedMessages = this.transformMessages(messages);
-    console.log('🔄 Transformed messages:', JSON.stringify(transformedMessages, null, 2));
+    console.log(
+      '🔄 Transformed messages:',
+      JSON.stringify(transformedMessages, null, 2),
+    );
 
     // Prepend system prompt if it exists and there's no system message
     const messagesWithSystem = this.addSystemPrompt(transformedMessages);
@@ -54,16 +68,16 @@ export class AiService {
     if (response.body) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      
+
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          
+
           // Decode and accumulate the response
           const chunk = decoder.decode(value, { stream: true });
           completeResponse += chunk;
-          
+
           // Write to response stream
           res.write(value);
         }
@@ -105,7 +119,11 @@ export class AiService {
         const deepWikiContent = fs.readFileSync(deepWikiPath, 'utf-8').trim();
         if (deepWikiContent) {
           systemPrompt += deepWikiContent + '\n\n';
-          console.log('✅ DeepWiki Prompt loaded:', deepWikiContent.length, 'characters');
+          console.log(
+            '✅ DeepWiki Prompt loaded:',
+            deepWikiContent.length,
+            'characters',
+          );
         }
       } else {
         console.log('⚠️  DeepWiki Prompt.txt not found');
@@ -113,10 +131,16 @@ export class AiService {
 
       // Load Main Prompt if it exists
       if (fs.existsSync(mainPromptPath)) {
-        const mainPromptContent = fs.readFileSync(mainPromptPath, 'utf-8').trim();
+        const mainPromptContent = fs
+          .readFileSync(mainPromptPath, 'utf-8')
+          .trim();
         if (mainPromptContent) {
           systemPrompt += mainPromptContent;
-          console.log('✅ Main Prompt loaded:', mainPromptContent.length, 'characters');
+          console.log(
+            '✅ Main Prompt loaded:',
+            mainPromptContent.length,
+            'characters',
+          );
         }
       } else {
         console.log('⚠️  Prompt.txt not found');
@@ -124,7 +148,11 @@ export class AiService {
 
       if (systemPrompt) {
         console.log('✅ System prompts loaded successfully');
-        console.log('📝 Total system prompt length:', systemPrompt.length, 'characters');
+        console.log(
+          '📝 Total system prompt length:',
+          systemPrompt.length,
+          'characters',
+        );
       } else {
         console.log('⚠️  No system prompts found or prompts are empty');
       }
@@ -142,7 +170,7 @@ export class AiService {
    */
   private addSystemPrompt(messages: any[]): any[] {
     // Check if there's already a system message
-    const hasSystemMessage = messages.some(msg => msg.role === 'system');
+    const hasSystemMessage = messages.some((msg) => msg.role === 'system');
 
     // If there's a system prompt and no system message exists, prepend it
     if (this.systemPrompt && !hasSystemMessage) {
@@ -159,7 +187,7 @@ export class AiService {
     // If there's a system prompt and a system message exists, append to existing
     if (this.systemPrompt && hasSystemMessage) {
       console.log('✅ Appending system prompt to existing system message');
-      return messages.map(msg => {
+      return messages.map((msg) => {
         if (msg.role === 'system') {
           return {
             ...msg,
@@ -323,22 +351,32 @@ export class AiService {
   /**
    * Send SSE event to frontend when workflow is created
    */
-  private sendWorkflowCreatedEvent(res: Response, workflow: any): void {
+  private sendWorkflowCreatedEvent(
+    res: Response,
+    workflow: any,
+    prompt?: string,
+    isReady?: boolean,
+    clarificationQuestions?: string[],
+  ): void {
     try {
       // Create SSE formatted message
       const eventData = {
         type: 'workflow-created',
         workflowId: workflow.id,
         workflowName: workflow.name,
-        nodeCount: workflow.workflow_data?.nodes?.length || 0,
-        edgeCount: workflow.workflow_data?.edges?.length || 0,
+        prompt: prompt || '',
+        is_ready: isReady ?? true,
+        clarification_questions: clarificationQuestions || [],
       };
-      
+
       // Send as SSE data event
       const sseMessage = `data: ${JSON.stringify(eventData)}\n\n`;
       res.write(sseMessage);
-      
-      console.log('📤 Sent workflow-created SSE event to frontend:', workflow.id);
+
+      console.log(
+        '📤 Sent workflow-created SSE event to frontend:',
+        workflow.id,
+      );
     } catch (error) {
       console.error('❌ Error sending workflow-created event:', error.message);
     }
@@ -348,14 +386,18 @@ export class AiService {
    * Detect workflow JSON in AI response and automatically save it
    * Sends SSE event to frontend when workflow is created
    */
-  private async detectAndSaveWorkflow(responseText: string, userId: string, res: Response): Promise<void> {
+  private async detectAndSaveWorkflow(
+    responseText: string,
+    userId: string,
+    res: Response,
+  ): Promise<void> {
     try {
       console.log('🔍 Checking for workflow JSON in response...');
-      
+
       // The response is in SSE format: data: {"type":"text-delta","delta":"..."}
       // We need to extract all delta values and reconstruct the message
       let extractedText = '';
-      
+
       // Split by lines and process SSE format
       const lines = responseText.split('\n');
       for (const line of lines) {
@@ -373,102 +415,128 @@ export class AiService {
           }
         }
       }
-      
+
       console.log('📝 Extracted text length:', extractedText.length);
       console.log('📝 Extracted preview:', extractedText.substring(0, 500));
-      
-      // Now try to parse the extracted text as JSON (it should be a complete workflow JSON)
+
+      // Variables to store the new response format properties
+      let prompt: string | undefined;
+      let isReady: boolean | undefined;
+      let clarificationQuestions: string[] | undefined;
+
+      // Now try to parse the extracted text as JSON
       try {
         const parsed = JSON.parse(extractedText);
-        
-        // Check if it looks like a workflow (has nodes and edges)
-        if (parsed.nodes && parsed.edges && Array.isArray(parsed.nodes) && Array.isArray(parsed.edges)) {
-          console.log('✅ Workflow JSON detected!');
-          console.log('📦 Nodes:', parsed.nodes.length);
-          console.log('🔗 Edges:', parsed.edges.length);
-          
-          // Extract workflow name from nodes if possible
-          const workflowSteps = parsed.nodes.map((n: any) => n.data?.label).filter(Boolean);
-          const workflowName = workflowSteps.length > 0 
-            ? `${workflowSteps[0]}` 
-            : 'AI Generated Workflow';
-          
-          // Create workflow DTO
-          const workflowDto = {
-            name: workflowName,
-            description: `Auto-generated workflow with ${parsed.nodes.length} steps`,
-            workflowData: {
-              nodes: parsed.nodes,
-              edges: parsed.edges,
-            },
-          };
-          
-          // Save to database
-          const savedWorkflow = await this.createWorkflow(userId, workflowDto);
-          console.log('💾 Workflow saved successfully:', savedWorkflow.id);
-          console.log('🎉 Workflow name:', savedWorkflow.name);
-          
-          // Send SSE event to frontend
-          this.sendWorkflowCreatedEvent(res, savedWorkflow);
-          
-          return; // Success, exit
+
+        // Check if it contains the new response format (prompt, is_ready, clarification_questions)
+        if (parsed.prompt !== undefined) {
+          console.log('✅ New response format detected!');
+          prompt = parsed.prompt;
+          isReady = parsed.is_ready;
+          clarificationQuestions = parsed.clarification_questions || [];
+
+          console.log('📝 Prompt:', prompt);
+          console.log('✔️  Is Ready:', isReady);
+          console.log('❓ Clarification Questions:', clarificationQuestions);
+
+          // If is_ready is true, save the prompt as a workflow
+          if (isReady && prompt) {
+            console.log('✅ Prompt is ready! Creating workflow...');
+
+            const workflowDto = {
+              name: prompt.substring(0, 100) || 'AI Generated Workflow',
+              description: 'User prompt ready for processing',
+              workflowData: prompt,
+            };
+
+            // Save to database
+            const savedWorkflow = await this.createWorkflow(
+              userId,
+              workflowDto,
+            );
+            console.log('💾 Workflow saved successfully:', savedWorkflow.id);
+            console.log('🎉 Workflow name:', savedWorkflow.name);
+
+            // Send SSE event to frontend
+            this.sendWorkflowCreatedEvent(
+              res,
+              savedWorkflow,
+              prompt,
+              isReady,
+              clarificationQuestions,
+            );
+
+            return; // Success, exit
+          }
         }
       } catch (parseError) {
         // If direct parse fails, try to find JSON in text (markdown code blocks, etc.)
-        console.log('⚠️  Direct JSON parse failed, searching for JSON in text...');
+        console.log(
+          '⚠️  Direct JSON parse failed, searching for JSON in text...',
+        );
       }
-      
+
       // Fallback: Try to extract JSON from markdown code blocks or raw JSON
       const jsonBlockRegex = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/g;
       const matches = [...extractedText.matchAll(jsonBlockRegex)];
-      
+
       // Also search for raw JSON with proper nesting
       const nestedJsonRegex = /(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})/g;
       const nestedMatches = [...extractedText.matchAll(nestedJsonRegex)];
-      
+
       const allMatches = [
-        ...matches.map(m => m[1]), 
-        ...nestedMatches.map(m => m[1])
+        ...matches.map((m) => m[1]),
+        ...nestedMatches.map((m) => m[1]),
       ];
-      
+
       console.log('🔍 Found', allMatches.length, 'potential JSON objects');
-      
+
       for (const jsonString of allMatches) {
         try {
           const parsed = JSON.parse(jsonString);
-          
-          // Check if it looks like a workflow (has nodes and edges)
-          if (parsed.nodes && parsed.edges && Array.isArray(parsed.nodes) && Array.isArray(parsed.edges)) {
-            console.log('✅ Workflow JSON detected in code block!');
-            console.log('📦 Nodes:', parsed.nodes.length);
-            console.log('🔗 Edges:', parsed.edges.length);
-            
-            // Extract workflow name from nodes if possible
-            const workflowSteps = parsed.nodes.map((n: any) => n.data?.label).filter(Boolean);
-            const workflowName = workflowSteps.length > 0 
-              ? `${workflowSteps[0]}` 
-              : 'AI Generated Workflow';
-            
-            // Create workflow DTO
-            const workflowDto = {
-              name: workflowName,
-              description: `Auto-generated workflow with ${parsed.nodes.length} steps`,
-              workflowData: {
-                nodes: parsed.nodes,
-                edges: parsed.edges,
-              },
-            };
-            
-            // Save to database
-            const savedWorkflow = await this.createWorkflow(userId, workflowDto);
-            console.log('💾 Workflow saved successfully:', savedWorkflow.id);
-            console.log('🎉 Workflow name:', savedWorkflow.name);
-            
-            // Send SSE event to frontend
-            this.sendWorkflowCreatedEvent(res, savedWorkflow);
-            
-            // Only save the first valid workflow found
-            break;
+
+          // Check if it contains the new response format first
+          if (parsed.prompt !== undefined) {
+            console.log('✅ New response format detected in fallback!');
+            prompt = parsed.prompt;
+            isReady = parsed.is_ready;
+            clarificationQuestions = parsed.clarification_questions || [];
+
+            console.log('📝 Prompt:', prompt);
+            console.log('✔️  Is Ready:', isReady);
+            console.log('❓ Clarification Questions:', clarificationQuestions);
+
+            // If is_ready is true, save the prompt as a workflow
+            if (isReady && prompt) {
+              console.log(
+                '✅ Prompt is ready! Creating workflow from fallback...',
+              );
+
+              const workflowDto = {
+                name: prompt.substring(0, 100) || 'AI Generated Workflow',
+                description: 'User prompt ready for processing',
+                workflowData: prompt,
+              };
+
+              // Save to database
+              const savedWorkflow = await this.createWorkflow(
+                userId,
+                workflowDto,
+              );
+              console.log('💾 Workflow saved successfully:', savedWorkflow.id);
+              console.log('🎉 Workflow name:', savedWorkflow.name);
+
+              // Send SSE event to frontend
+              this.sendWorkflowCreatedEvent(
+                res,
+                savedWorkflow,
+                prompt,
+                isReady,
+                clarificationQuestions,
+              );
+
+              return; // Success, exit
+            }
           }
         } catch (parseError) {
           // Not valid JSON or not a workflow, continue checking

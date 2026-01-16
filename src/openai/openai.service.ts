@@ -62,22 +62,29 @@ export class OpenAiService {
       process.env.OPENAI_BASE_URL;
     const trimmedBaseUrl = baseUrl?.replace(/\/$/, '');
 
-    console.log('OpenAI client init - API key present:', !!apiKey, 'length:', apiKey.length);
-    console.log('OpenAI client init - API key starts with:', apiKey.substring(0, 10) + '...');
-    console.log('OpenAI client init - base URL:', trimmedBaseUrl || 'default (will use OpenAI default)');
+    console.log(
+      'OpenAI client init - API key present:',
+      !!apiKey,
+      'length:',
+      apiKey.length,
+    );
+    console.log(
+      'OpenAI client init - API key starts with:',
+      apiKey.substring(0, 10) + '...',
+    );
+    console.log(
+      'OpenAI client init - base URL:',
+      trimmedBaseUrl || 'default (will use OpenAI default)',
+    );
 
     const clientConfig = {
       apiKey,
-      ...(
-        trimmedBaseUrl
-          ? { baseURL: trimmedBaseUrl }
-          : {}
-      ),
+      ...(trimmedBaseUrl ? { baseURL: trimmedBaseUrl } : {}),
     };
 
     console.log('OpenAI client config:', {
       hasApiKey: !!clientConfig.apiKey,
-      baseURL: clientConfig.baseURL || 'default'
+      baseURL: clientConfig.baseURL || 'default',
     });
 
     this.client = new OpenAI(clientConfig);
@@ -85,4 +92,3 @@ export class OpenAiService {
     return this.client;
   }
 }
-

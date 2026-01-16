@@ -1,9 +1,18 @@
-export type AutomationJobStatus = 'running' | 'completed' | 'failed' | 'stopped';
+export type AutomationJobStatus =
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'stopped';
 
 export type AutomationStreamEvent =
   | {
       type: 'job_started';
-      payload: { job_id: string; started_at: string; query: string; url: string };
+      payload: {
+        job_id: string;
+        started_at: string;
+        query: string;
+        url: string;
+      };
     }
   | {
       type: 'step';
@@ -15,7 +24,11 @@ export type AutomationStreamEvent =
     }
   | {
       type: 'job_finished';
-      payload: { job_id: string; finished_at: string; status: AutomationJobStatus };
+      payload: {
+        job_id: string;
+        finished_at: string;
+        status: AutomationJobStatus;
+      };
     }
   | {
       type: 'job_failed';
@@ -23,7 +36,11 @@ export type AutomationStreamEvent =
     }
   | {
       type: 'agent_thinking';
-      payload: { agent: 'planner' | 'browser' | 'critique'; message: string; at: string };
+      payload: {
+        agent: 'planner' | 'browser' | 'critique';
+        message: string;
+        at: string;
+      };
     }
   | {
       type: 'plan_created';
@@ -39,7 +56,11 @@ export type AutomationStreamEvent =
     }
   | {
       type: 'critique_result';
-      payload: { status: 'success' | 'continue' | 'replan'; feedback: string; at: string };
+      payload: {
+        status: 'success' | 'continue' | 'replan';
+        feedback: string;
+        at: string;
+      };
     };
 
 // Three-Agent System Types
@@ -76,7 +97,11 @@ export type BrowserAgentResponse = {
   expected_result: string;
 };
 
-export type CritiqueDecision = 'task_complete' | 'continue_plan' | 'replan_needed' | 'action_failed';
+export type CritiqueDecision =
+  | 'task_complete'
+  | 'continue_plan'
+  | 'replan_needed'
+  | 'action_failed';
 
 export type CritiqueResponse = {
   decision: CritiqueDecision;
@@ -86,5 +111,3 @@ export type CritiqueResponse = {
   recommendation: string;
   extracted_data?: any;
 };
-
-

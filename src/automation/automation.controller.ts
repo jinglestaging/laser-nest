@@ -38,5 +38,3 @@ export class AutomationController {
     return this.automationService.getStream(jobId);
   }
 }
-
-

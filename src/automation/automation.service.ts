@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { chromium, type Browser, type Page } from 'playwright';
 import { Subject } from 'rxjs';
@@ -82,9 +86,13 @@ export class AutomationService {
   }
 
   async run(params: { url?: string; query?: string }) {
-    const runningJob = [...this.jobs.values()].find((j) => j.status === 'running');
+    const runningJob = [...this.jobs.values()].find(
+      (j) => j.status === 'running',
+    );
     if (runningJob) {
-      throw new BadRequestException(`Another job is already running: ${runningJob.id}`);
+      throw new BadRequestException(
+        `Another job is already running: ${runningJob.id}`,
+      );
     }
 
     const jobId = randomUUID();
@@ -131,9 +139,13 @@ export class AutomationService {
 
   async runAi(dto: RunAiAutomationDto) {
     console.log('runAi called with dto:', dto);
-    const runningJob = [...this.jobs.values()].find((j) => j.status === 'running');
+    const runningJob = [...this.jobs.values()].find(
+      (j) => j.status === 'running',
+    );
     if (runningJob) {
-      throw new BadRequestException(`Another job is already running: ${runningJob.id}`);
+      throw new BadRequestException(
+        `Another job is already running: ${runningJob.id}`,
+      );
     }
 
     const jobId = randomUUID();
@@ -155,7 +167,12 @@ export class AutomationService {
     this.jobs.set(jobId, job);
     this.emit(job, {
       type: 'job_started',
-      payload: { job_id: jobId, started_at: job.started_at, query: prompt, url: job.url },
+      payload: {
+        job_id: jobId,
+        started_at: job.started_at,
+        query: prompt,
+        url: job.url,
+      },
     });
 
     void this.runAiWorkflow(job, {
@@ -191,9 +208,13 @@ export class AutomationService {
    */
   async runThreeAgentAi(dto: RunAiAutomationDto) {
     console.log('runThreeAgentAi called with dto:', dto);
-    const runningJob = [...this.jobs.values()].find((j) => j.status === 'running');
+    const runningJob = [...this.jobs.values()].find(
+      (j) => j.status === 'running',
+    );
     if (runningJob) {
-      throw new BadRequestException(`Another job is already running: ${runningJob.id}`);
+      throw new BadRequestException(
+        `Another job is already running: ${runningJob.id}`,
+      );
     }
 
     const jobId = randomUUID();
@@ -215,7 +236,12 @@ export class AutomationService {
     this.jobs.set(jobId, job);
     this.emit(job, {
       type: 'job_started',
-      payload: { job_id: jobId, started_at: job.started_at, query: prompt, url: job.url },
+      payload: {
+        job_id: jobId,
+        started_at: job.started_at,
+        query: prompt,
+        url: job.url,
+      },
     });
 
     void this.runThreeAgentWorkflow(job, {
@@ -297,7 +323,9 @@ export class AutomationService {
       await page.waitForSelector('textarea[name="q"], input[name="q"]', {
         timeout: 15_000,
       });
-      const input = (await page.$('textarea[name="q"]')) || (await page.$('input[name="q"]'));
+      const input =
+        (await page.$('textarea[name="q"]')) ||
+        (await page.$('input[name="q"]'));
       if (!input) throw new Error('Google search input not found');
       await input.fill(job.query);
       await capture(page);
@@ -392,14 +420,16 @@ Never use file:// or local paths.`;
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: args.prompt },
-        { role: 'user', content: `OBSERVATION:\n${JSON.stringify(args.observation)}` },
+        {
+          role: 'user',
+          content: `OBSERVATION:\n${JSON.stringify(args.observation)}`,
+        },
       ],
     });
 
-    console.log("AHOJ", response)
+    console.log('AHOJ', response);
 
-    const messageContent =
-      response?.choices?.[0]?.message?.content;
+    const messageContent = response?.choices?.[0]?.message?.content;
 
     if (!messageContent) {
       const errorMessage =
@@ -428,15 +458,23 @@ Never use file:// or local paths.`;
         parsed = JSON.parse(messageContent.trim());
       } catch (rawError) {
         console.error('Raw JSON parse error:', rawError);
-        throw new Error(`AI returned malformed JSON. Raw: ${messageContent.substring(0, 300)}...`);
+        throw new Error(
+          `AI returned malformed JSON. Raw: ${messageContent.substring(0, 300)}...`,
+        );
       }
     }
 
     if (!parsed.action || typeof parsed.action !== 'object') {
-      throw new Error(`AI returned invalid action structure: ${JSON.stringify(parsed)}`);
+      throw new Error(
+        `AI returned invalid action structure: ${JSON.stringify(parsed)}`,
+      );
     }
 
-    return { thought: parsed?.thought, action: parsed?.action, raw: messageContent };
+    return {
+      thought: parsed?.thought,
+      action: parsed?.action,
+      raw: messageContent,
+    };
   }
 
   private async describePage(page: Page) {
@@ -461,10 +499,18 @@ Never use file:// or local paths.`;
                 tag: (el as HTMLElement).tagName?.toLowerCase?.() || '',
                 text: text.slice(0, 120),
                 id: (anyEl.id || '').toString().slice(0, 80),
-                name: (anyEl.getAttribute?.('name') || '').toString().slice(0, 80),
-                role: (anyEl.getAttribute?.('role') || '').toString().slice(0, 40),
-                placeholder: (anyEl.getAttribute?.('placeholder') || '').toString().slice(0, 80),
-                type: (anyEl.getAttribute?.('type') || '').toString().slice(0, 20),
+                name: (anyEl.getAttribute?.('name') || '')
+                  .toString()
+                  .slice(0, 80),
+                role: (anyEl.getAttribute?.('role') || '')
+                  .toString()
+                  .slice(0, 40),
+                placeholder: (anyEl.getAttribute?.('placeholder') || '')
+                  .toString()
+                  .slice(0, 80),
+                type: (anyEl.getAttribute?.('type') || '')
+                  .toString()
+                  .slice(0, 20),
               };
             })
             .filter((e) => e.text || e.id || e.name || e.placeholder),
@@ -474,7 +520,6 @@ Never use file:// or local paths.`;
     const bodyText = await page
       .evaluate(() => (document.body?.innerText || '').slice(0, 2000))
       .catch(() => '');
-
 
     return { title, url, elements, body_text: bodyText };
   }
@@ -495,7 +540,7 @@ Never use file:// or local paths.`;
         'button:has-text("přijmout")',
         'button:has-text("přijmout vše")',
         '[data-testid="cookie-accept"]',
-        '#cookieConsent button'
+        '#cookieConsent button',
       ];
 
       for (const selector of cookieSelectors) {
@@ -518,7 +563,11 @@ Never use file:// or local paths.`;
     }
   }
 
-  private async clickByBestEffort(page: Page, text?: string, selector?: string) {
+  private async clickByBestEffort(
+    page: Page,
+    text?: string,
+    selector?: string,
+  ) {
     if (selector?.trim()) {
       await page.locator(selector).first().click({ timeout: 15_000 });
       return;
@@ -527,9 +576,12 @@ Never use file:// or local paths.`;
     if (!t) throw new Error('click requires text or selector');
 
     const attempts: Array<() => Promise<void>> = [
-      async () => page.getByRole('button', { name: t }).first().click({ timeout: 2_500 }),
-      async () => page.getByRole('link', { name: t }).first().click({ timeout: 2_500 }),
-      async () => page.getByText(t, { exact: false }).first().click({ timeout: 2_500 }),
+      async () =>
+        page.getByRole('button', { name: t }).first().click({ timeout: 2_500 }),
+      async () =>
+        page.getByRole('link', { name: t }).first().click({ timeout: 2_500 }),
+      async () =>
+        page.getByText(t, { exact: false }).first().click({ timeout: 2_500 }),
       async () => page.locator(`text=${t}`).first().click({ timeout: 2_500 }),
     ];
 
@@ -545,7 +597,12 @@ Never use file:// or local paths.`;
     throw lastErr instanceof Error ? lastErr : new Error('Click failed');
   }
 
-  private async fillByBestEffort(page: Page, field?: string, value?: string, selector?: string) {
+  private async fillByBestEffort(
+    page: Page,
+    field?: string,
+    value?: string,
+    selector?: string,
+  ) {
     const v = value ?? '';
     if (selector?.trim()) {
       await page.locator(selector).first().fill(v, { timeout: 15_000 });
@@ -555,14 +612,38 @@ Never use file:// or local paths.`;
     if (!f) throw new Error('fill requires field or selector');
 
     const attempts: Array<() => Promise<void>> = [
-      async () => page.getByLabel(f, { exact: false }).first().fill(v, { timeout: 2_500 }),
-      async () => page.getByPlaceholder(f, { exact: false }).first().fill(v, { timeout: 2_500 }),
-      async () => page.getByRole('textbox', { name: f }).first().fill(v, { timeout: 2_500 }),
-      async () => page.locator(`input[name="${f}"], textarea[name="${f}"]`).first().fill(v, { timeout: 2_500 }),
-      async () => page.locator(`input[placeholder*="${f}"], textarea[placeholder*="${f}"]`).first().fill(v, { timeout: 2_500 }),
+      async () =>
+        page
+          .getByLabel(f, { exact: false })
+          .first()
+          .fill(v, { timeout: 2_500 }),
+      async () =>
+        page
+          .getByPlaceholder(f, { exact: false })
+          .first()
+          .fill(v, { timeout: 2_500 }),
+      async () =>
+        page
+          .getByRole('textbox', { name: f })
+          .first()
+          .fill(v, { timeout: 2_500 }),
+      async () =>
+        page
+          .locator(`input[name="${f}"], textarea[name="${f}"]`)
+          .first()
+          .fill(v, { timeout: 2_500 }),
+      async () =>
+        page
+          .locator(`input[placeholder*="${f}"], textarea[placeholder*="${f}"]`)
+          .first()
+          .fill(v, { timeout: 2_500 }),
       // Smart fallback: find first visible text input/textarea (language-agnostic)
       async () => {
-        const input = page.locator('input[type="text"]:visible, input:not([type]):visible, textarea:visible, input[type="search"]:visible').first();
+        const input = page
+          .locator(
+            'input[type="text"]:visible, input:not([type]):visible, textarea:visible, input[type="search"]:visible',
+          )
+          .first();
         await input.waitFor({ state: 'visible', timeout: 2_500 });
         await input.fill(v, { timeout: 2_500 });
       },
@@ -818,14 +899,18 @@ Analyze the results and decide next action.`;
     return parsed as CritiqueResponse;
   }
 
-
   /**
    * THREE-AGENT ORCHESTRATION WORKFLOW
    * Coordinates Planner, Browser, and Critique agents in a feedback loop
    */
   private async runThreeAgentWorkflow(
     job: JobInternal,
-    args: { prompt: string; start_url?: string; headless: boolean; max_iterations: number },
+    args: {
+      prompt: string;
+      start_url?: string;
+      headless: boolean;
+      max_iterations: number;
+    },
   ) {
     const step = (message: string) => {
       job.last_step = message;
@@ -835,7 +920,10 @@ Analyze the results and decide next action.`;
       });
     };
 
-    const agentThinking = (agent: 'planner' | 'browser' | 'critique', message: string) => {
+    const agentThinking = (
+      agent: 'planner' | 'browser' | 'critique',
+      message: string,
+    ) => {
       this.emit(job, {
         type: 'agent_thinking',
         payload: { agent, message, at: new Date().toISOString() },
@@ -923,7 +1011,9 @@ Analyze the results and decide next action.`;
         }
 
         const currentStep = currentPlan.steps[currentStepIndex];
-        step(`Executing step ${currentStep.step_number}/${currentPlan.steps.length}: ${currentStep.description}`);
+        step(
+          `Executing step ${currentStep.step_number}/${currentPlan.steps.length}: ${currentStep.description}`,
+        );
 
         // Get page state before action
         const pageStateBefore = await this.describePage(page);
@@ -937,7 +1027,9 @@ Analyze the results and decide next action.`;
           user_goal: args.prompt,
         });
 
-        step(`Action: ${browserResponse.action.type} - ${browserResponse.reasoning}`);
+        step(
+          `Action: ${browserResponse.action.type} - ${browserResponse.reasoning}`,
+        );
 
         // Execute the browser action
         const action = browserResponse.action;
@@ -952,13 +1044,24 @@ Analyze the results and decide next action.`;
             await this.clickByBestEffort(page, action.text, action.selector);
             await page.waitForTimeout(500);
           } else if (action.type === 'fill') {
-            await this.fillByBestEffort(page, action.field, action.value, action.selector);
+            await this.fillByBestEffort(
+              page,
+              action.field,
+              action.value,
+              action.selector,
+            );
             await page.waitForTimeout(300);
-            
+
             // Auto-submit: After filling, look for submit button in the same form and click it
             try {
-              const submitButton = page.locator('button[type="submit"]:visible, input[type="submit"]:visible').first();
-              const isVisible = await submitButton.isVisible({ timeout: 1000 }).catch(() => false);
+              const submitButton = page
+                .locator(
+                  'button[type="submit"]:visible, input[type="submit"]:visible',
+                )
+                .first();
+              const isVisible = await submitButton
+                .isVisible({ timeout: 1000 })
+                .catch(() => false);
               if (isVisible) {
                 step('Auto-submitting form (found submit button)');
                 await submitButton.click({ timeout: 2000 });
@@ -990,7 +1093,10 @@ Analyze the results and decide next action.`;
             },
           });
         } catch (actionError: unknown) {
-          const errorMsg = actionError instanceof Error ? actionError.message : 'Action failed';
+          const errorMsg =
+            actionError instanceof Error
+              ? actionError.message
+              : 'Action failed';
           step(`Action failed: ${errorMsg}`);
           this.emit(job, {
             type: 'action_executed',
@@ -1007,7 +1113,10 @@ Analyze the results and decide next action.`;
         const pageStateAfter = await this.describePage(page);
 
         // PHASE 3: CRITIQUE AGENT - Evaluate results
-        agentThinking('critique', 'Analyzing results and determining next action...');
+        agentThinking(
+          'critique',
+          'Analyzing results and determining next action...',
+        );
 
         const critique = await this.callCritiqueAgent({
           user_goal: args.prompt,
@@ -1023,7 +1132,12 @@ Analyze the results and decide next action.`;
         this.emit(job, {
           type: 'critique_result',
           payload: {
-            status: critique.decision === 'task_complete' ? 'success' : critique.decision === 'continue_plan' ? 'continue' : 'replan',
+            status:
+              critique.decision === 'task_complete'
+                ? 'success'
+                : critique.decision === 'continue_plan'
+                  ? 'continue'
+                  : 'replan',
             feedback: critique.analysis,
             at: new Date().toISOString(),
           },
@@ -1033,7 +1147,9 @@ Analyze the results and decide next action.`;
         if (critique.decision === 'task_complete') {
           step('✅ Task completed successfully!');
           if (critique.extracted_data) {
-            step(`Extracted data: ${JSON.stringify(critique.extracted_data).slice(0, 200)}`);
+            step(
+              `Extracted data: ${JSON.stringify(critique.extracted_data).slice(0, 200)}`,
+            );
           }
           job.status = 'completed';
           job.finished_at = new Date().toISOString();
@@ -1052,7 +1168,9 @@ Analyze the results and decide next action.`;
           currentStepIndex++;
         } else if (critique.decision === 'replan_needed') {
           if (replanCount >= maxReplanAttempts) {
-            throw new Error(`Max replan attempts (${maxReplanAttempts}) reached`);
+            throw new Error(
+              `Max replan attempts (${maxReplanAttempts}) reached`,
+            );
           }
           step('⚠️ Replanning needed');
           agentThinking('planner', 'Creating new plan based on feedback...');
@@ -1068,7 +1186,9 @@ Analyze the results and decide next action.`;
           this.emit(job, {
             type: 'plan_updated',
             payload: {
-              steps: newPlan.steps.map((s) => `${s.step_number}. ${s.description}`),
+              steps: newPlan.steps.map(
+                (s) => `${s.step_number}. ${s.description}`,
+              ),
               reason: critique.recommendation,
               at: new Date().toISOString(),
             },
@@ -1086,7 +1206,9 @@ Analyze the results and decide next action.`;
 
       // If we exit loop without completion
       if (job.status !== 'completed') {
-        throw new Error(`Max iterations (${args.max_iterations}) reached without task completion`);
+        throw new Error(
+          `Max iterations (${args.max_iterations}) reached without task completion`,
+        );
       }
     } finally {
       clearInterval(interval);
@@ -1097,7 +1219,12 @@ Analyze the results and decide next action.`;
 
   private async runAiWorkflow(
     job: JobInternal,
-    args: { prompt: string; start_url?: string; headless: boolean; max_steps: number },
+    args: {
+      prompt: string;
+      start_url?: string;
+      headless: boolean;
+      max_steps: number;
+    },
   ) {
     console.log('runAiWorkflow called with args:', args);
     const step = (message: string) => {
@@ -1194,7 +1321,8 @@ Analyze the results and decide next action.`;
 
         if (type === 'goto') {
           const url = (action.url || '').toString();
-          if (!this.isSafeHttpUrl(url)) throw new Error('Blocked navigation: only http(s) URLs allowed');
+          if (!this.isSafeHttpUrl(url))
+            throw new Error('Blocked navigation: only http(s) URLs allowed');
           step(`Goto: ${url}`);
           await page.goto(url, { waitUntil: 'domcontentloaded' });
           await page.waitForTimeout(2000); // Wait for dynamic content
@@ -1210,7 +1338,12 @@ Analyze the results and decide next action.`;
         }
 
         if (type === 'fill') {
-          await this.fillByBestEffort(page, action.field, action.value, action.selector);
+          await this.fillByBestEffort(
+            page,
+            action.field,
+            action.value,
+            action.selector,
+          );
           await capture(page);
           continue;
         }
@@ -1234,7 +1367,9 @@ Analyze the results and decide next action.`;
         throw new Error(`Unknown AI action type: ${type}`);
       }
 
-      throw new Error(`Max steps reached (${args.max_steps}) without completing`);
+      throw new Error(
+        `Max steps reached (${args.max_steps}) without completing`,
+      );
     } finally {
       clearInterval(interval);
       await context.close().catch(() => undefined);
@@ -1242,5 +1377,3 @@ Analyze the results and decide next action.`;
     }
   }
 }
-
-
