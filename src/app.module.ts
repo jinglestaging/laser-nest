@@ -8,8 +8,10 @@ import { HealthModule } from './health/health.module';
 import { LoggerModule } from 'nestjs-pino';
 import { StripeModule } from './stripe/stripe.module';
 import { SupabaseModule } from './supabase/supabase.module';
-import { AutomationModule } from './automation/automation.module';
-import { AiModule } from './ai/ai.module';
+import { ChatModule } from './chat/chat.module';
+import { WorkflowsModule } from './workflows/workflows.module';
+import { TasksModule } from './tasks/tasks.module';
+import { AnchorbrowserModule } from './anchorbrowser/anchorbrowser.module';
 
 @Module({
   imports: [
@@ -44,8 +46,10 @@ import { AiModule } from './ai/ai.module';
     HealthModule,
     StripeModule,
     SupabaseModule,
-    AutomationModule,
-    AiModule,
+    ChatModule,
+    WorkflowsModule,
+    TasksModule,
+    AnchorbrowserModule,
   ],
   controllers: [],
   providers: [],

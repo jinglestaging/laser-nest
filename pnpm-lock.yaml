@@ -50,6 +50,9 @@ importers:
       ai:
         specifier: ^6.0.27
         version: 6.0.27(zod@4.3.5)
+      anchorbrowser:
+        specifier: ^0.12.0
+        version: 0.12.1
       backblaze-b2:
         specifier: ^1.7.1
         version: 1.7.1
@@ -2291,6 +2294,9 @@ packages:
 
   ajv@8.17.1:
     resolution: {integrity: sha512-B/gBuNg5SiMTrPkC+A2+cW0RszwxYmn6VYxB/inlBStS5nx6xHIt/ehKRhIMhqusl7a8LjQoZnjCs5vhwxOQ1g==}
+
+  anchorbrowser@0.12.1:
+    resolution: {integrity: sha512-3xLBNSiqISc8Ze6eLt1gV63ju0S92Qc+voiv2E1pG/hHda2m2Ah5QPcyo05KfoDQQmkyVN9fURlruG4nuWOj6Q==}
 
   ansi-align@3.0.1:
     resolution: {integrity: sha512-IOfwwBF5iczOjp/WeY4YxyjqAFMQoZufdQWDd19SEExbVLNXqvpzSJ/M7Za4/sCPmQ0+GRquoA7bGcINcxew6w==}
@@ -7452,6 +7458,14 @@ snapshots:
       fast-uri: 3.1.0
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
+
+  anchorbrowser@0.12.1:
+    dependencies:
+      playwright: 1.57.0
+      ws: 8.19.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   ansi-align@3.0.1:
     dependencies:
