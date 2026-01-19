@@ -1,6 +1,6 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Sse, MessageEvent, Query } from '@nestjs/common';
+import { Observable } from 'rxjs';
 import { TasksService } from './tasks.service';
-import { CreateTaskDto } from './dto/create-task.dto';
 import { CreateSessionResponseDto } from './dto/create-session-response.dto';
 
 @Controller('tasks')
@@ -12,9 +12,11 @@ export class TasksController {
     return this.tasksService.createSession();
   }
 
-  @Post('task')
-  async createTask(@Body() createTaskDto: CreateTaskDto) {
-    const { sessionId, prompt } = createTaskDto;
-    return this.tasksService.createTask(sessionId, prompt);
+  @Sse('task-sse')
+  createTaskSSE(
+    @Query('sessionId') sessionId: string,
+    @Query('prompt') prompt: string
+  ): Observable<MessageEvent> {
+    return this.tasksService.createTaskSSE(sessionId, prompt);
   }
 }

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase/supabase.service';
 import { AnchorbrowserService } from '../anchorbrowser/anchorbrowser.service';
+import { Observable, Subject } from 'rxjs';
 
 @Injectable()
 export class TasksService {
@@ -32,20 +33,25 @@ export class TasksService {
     };
   }
 
-  async createTask(sessionId: string, prompt: string): Promise<any> {
+  createTaskSSE(sessionId: string, prompt: string): Observable<any> {
+    const subject = new Subject();
     const client = this.anchorbrowserService.getAnchorClient();
-    const executionStepLogs: any[] = [];
 
-    const result = await client.agent.task(prompt, {
+    client.agent.task(prompt, {
       sessionId,
       taskOptions: {
         onAgentStep: (executionStep) => {
-          console.log('Agent step:', executionStep); // Real-time log!
-          executionStepLogs.push(executionStep);
+          subject.next({ data: { type: 'step', step: executionStep } });
         },
       },
+    }).then((result) => {
+      subject.next({ data: { type: 'complete', result } });
+      setTimeout(() => subject.complete(), 100);
+    }).catch((error) => {
+      subject.next({ data: { type: 'error', error: error.message } });
+      setTimeout(() => subject.complete(), 100);
     });
 
-    return { result, executionStepLogs };
+    return subject.asObservable();
   }
 }
