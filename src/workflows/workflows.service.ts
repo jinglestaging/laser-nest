@@ -113,35 +113,4 @@ export class WorkflowsService {
 
     return { message: 'Workflow deleted successfully' };
   }
-
-  /**
-   * Send workflow created event via SSE
-   */
-  sendWorkflowCreatedEvent(
-    res: Response,
-    workflow: any,
-    prompt?: string,
-  ): void {
-    try {
-      // Create SSE formatted message
-      const eventData = {
-        type: 'workflow-created',
-        workflowId: workflow.id,
-        workflowName: workflow.name,
-        prompt: prompt || '',
-      };
-
-      // Send as SSE data event
-      const sseMessage = `data: ${JSON.stringify(eventData)}\n\n`;
-      res.write(sseMessage);
-
-      console.log(
-        '📤 Sent workflow-created SSE event to frontend:',
-        workflow.id,
-      );
-    } catch (error) {
-      console.error('❌ Error sending workflow-created event:', error.message);
-    }
-  }
-
 }
