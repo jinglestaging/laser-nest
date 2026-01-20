@@ -34,6 +34,44 @@ export class ChatService {
     );
     console.log('📦 Using model:', model);
 
+    // Check if this is the first message from the user
+    const isFirstMessage = messages.length === 1 && messages[0].role === 'user';
+    console.log('🎯 Is first message:', isFirstMessage);
+
+    // Variable to store workflow info for sending event after streaming
+    let firstMessageWorkflow: any = null;
+
+    // If it's the first message, create a workflow from the user's prompt
+    if (isFirstMessage && userId) {
+      const userMessage = messages[0].content;
+      const userMessageText = typeof userMessage === 'string' ? userMessage : JSON.stringify(userMessage);
+
+      console.log('📝 Creating workflow from first user message...');
+
+      const workflowDto = {
+        name: userMessageText.substring(0, 100) || 'User Prompt Workflow',
+        description: 'Workflow created from user\'s first message',
+        workflowData: userMessageText,
+      };
+
+      try {
+        const savedWorkflow = await this.workflowsService.createWorkflow(
+          userId,
+          workflowDto,
+        );
+        console.log('💾 Workflow created successfully:', savedWorkflow.id);
+        console.log('🎉 Workflow name:', savedWorkflow.name);
+
+        // Store workflow info to send event after streaming completes
+        firstMessageWorkflow = {
+          workflow: savedWorkflow,
+          prompt: userMessageText,
+        };
+      } catch (error) {
+        console.error('❌ Failed to create workflow from first message:', error);
+      }
+    }
+
     // Transform messages from OpenAI format to AI SDK format
     const transformedMessages = this.transformMessages(messages);
     console.log(
@@ -82,15 +120,13 @@ export class ChatService {
       }
     }
 
-    // After streaming is complete, check for workflow JSON and save it
-    // We need to do this BEFORE res.end() so we can send the workflow-created event
-    if (userId) {
-      console.log('📝 Complete response length:', completeResponse.length);
-      console.log('📝 First 500 chars:', completeResponse.substring(0, 500));
-      await this.workflowsService.detectAndSaveWorkflow(
-        completeResponse,
-        userId,
+    // After streaming is complete, send workflow creation event if it was the first message
+    if (firstMessageWorkflow) {
+      console.log('📤 Sending workflow creation event after streaming...');
+      this.workflowsService.sendWorkflowCreatedEvent(
         res,
+        firstMessageWorkflow.workflow,
+        firstMessageWorkflow.prompt,
       );
     }
 

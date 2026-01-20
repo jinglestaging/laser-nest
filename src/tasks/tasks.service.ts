@@ -40,6 +40,8 @@ export class TasksService {
     client.agent.task(prompt, {
       sessionId,
       taskOptions: {
+        provider: 'groq',
+        model: 'openai/gpt-oss-120b',
         onAgentStep: (executionStep) => {
           subject.next({ data: { type: 'step', step: executionStep } });
         },

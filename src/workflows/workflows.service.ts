@@ -121,8 +121,6 @@ export class WorkflowsService {
     res: Response,
     workflow: any,
     prompt?: string,
-    isReady?: boolean,
-    clarificationQuestions?: string[],
   ): void {
     try {
       // Create SSE formatted message
@@ -131,8 +129,6 @@ export class WorkflowsService {
         workflowId: workflow.id,
         workflowName: workflow.name,
         prompt: prompt || '',
-        is_ready: isReady ?? true,
-        clarification_questions: clarificationQuestions || [],
       };
 
       // Send as SSE data event
@@ -148,171 +144,4 @@ export class WorkflowsService {
     }
   }
 
-  /**
-   * Detect workflow JSON in AI response and automatically save it
-   * Sends SSE event to frontend when workflow is created
-   */
-  async detectAndSaveWorkflow(
-    responseText: string,
-    userId: string,
-    res: Response,
-  ): Promise<void> {
-    try {
-      console.log('🔍 Checking for workflow JSON in response...');
-
-      // The response is in SSE format: data: {"type":"text-delta","delta":"..."}
-      // We need to extract all delta values and reconstruct the message
-      let extractedText = '';
-
-      // Split by lines and process SSE format
-      const lines = responseText.split('\n');
-      for (const line of lines) {
-        // SSE lines start with "data: "
-        if (line.startsWith('data: ')) {
-          const jsonString = line.substring(6); // Remove "data: " prefix
-          try {
-            const obj = JSON.parse(jsonString);
-            // Extract delta field which contains the actual text chunks
-            if (obj.type === 'text-delta' && obj.delta) {
-              extractedText += obj.delta;
-            }
-          } catch {
-            // Skip invalid JSON lines
-          }
-        }
-      }
-
-      console.log('📝 Extracted text length:', extractedText.length);
-      console.log('📝 Extracted preview:', extractedText.substring(0, 500));
-
-      // Variables to store the new response format properties
-      let prompt: string | undefined;
-      let isReady: boolean | undefined;
-      let clarificationQuestions: string[] | undefined;
-
-      // Now try to parse the extracted text as JSON
-      try {
-        const parsed = JSON.parse(extractedText);
-
-        // Check if it contains the new response format (prompt, is_ready, clarification_questions)
-        if (parsed.prompt !== undefined) {
-          console.log('✅ New response format detected!');
-          prompt = parsed.prompt;
-          isReady = parsed.is_ready;
-          clarificationQuestions = parsed.clarification_questions || [];
-
-          console.log('📝 Prompt:', prompt);
-          console.log('✔️  Is Ready:', isReady);
-          console.log('❓ Clarification Questions:', clarificationQuestions);
-
-          // If is_ready is true, save the prompt as a workflow
-          if (isReady && prompt) {
-            console.log('✅ Prompt is ready! Creating workflow...');
-
-            const workflowDto = {
-              name: prompt.substring(0, 100) || 'AI Generated Workflow',
-              description: 'User prompt ready for processing',
-              workflowData: prompt,
-            };
-
-            // Save to database
-            const savedWorkflow = await this.createWorkflow(
-              userId,
-              workflowDto,
-            );
-            console.log('💾 Workflow saved successfully:', savedWorkflow.id);
-            console.log('🎉 Workflow name:', savedWorkflow.name);
-
-            // Send SSE event to frontend
-            this.sendWorkflowCreatedEvent(
-              res,
-              savedWorkflow,
-              prompt,
-              isReady,
-              clarificationQuestions,
-            );
-
-            return; // Success, exit
-          }
-        }
-      } catch (parseError) {
-        // If direct parse fails, try to find JSON in text (markdown code blocks, etc.)
-        console.log(
-          '⚠️  Direct JSON parse failed, searching for JSON in text...',
-        );
-      }
-
-      // Fallback: Try to extract JSON from markdown code blocks or raw JSON
-      const jsonBlockRegex = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/g;
-      const matches = [...extractedText.matchAll(jsonBlockRegex)];
-
-      // Also search for raw JSON with proper nesting
-      const nestedJsonRegex = /(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})/g;
-      const nestedMatches = [...extractedText.matchAll(nestedJsonRegex)];
-
-      const allMatches = [
-        ...matches.map((m) => m[1]),
-        ...nestedMatches.map((m) => m[1]),
-      ];
-
-      console.log('🔍 Found', allMatches.length, 'potential JSON objects');
-
-      for (const jsonString of allMatches) {
-        try {
-          const parsed = JSON.parse(jsonString);
-
-          // Check if it contains the new response format first
-          if (parsed.prompt !== undefined) {
-            console.log('✅ New response format detected in fallback!');
-            prompt = parsed.prompt;
-            isReady = parsed.is_ready;
-            clarificationQuestions = parsed.clarification_questions || [];
-
-            console.log('📝 Prompt:', prompt);
-            console.log('✔️  Is Ready:', isReady);
-            console.log('❓ Clarification Questions:', clarificationQuestions);
-
-            // If is_ready is true, save the prompt as a workflow
-            if (isReady && prompt) {
-              console.log(
-                '✅ Prompt is ready! Creating workflow from fallback...',
-              );
-
-              const workflowDto = {
-                name: prompt.substring(0, 100) || 'AI Generated Workflow',
-                description: 'User prompt ready for processing',
-                workflowData: prompt,
-              };
-
-              // Save to database
-              const savedWorkflow = await this.createWorkflow(
-                userId,
-                workflowDto,
-              );
-              console.log('💾 Workflow saved successfully:', savedWorkflow.id);
-              console.log('🎉 Workflow name:', savedWorkflow.name);
-
-              // Send SSE event to frontend
-              this.sendWorkflowCreatedEvent(
-                res,
-                savedWorkflow,
-                prompt,
-                isReady,
-                clarificationQuestions,
-              );
-
-              return; // Success, exit
-            }
-          }
-        } catch (parseError) {
-          // Not valid JSON or not a workflow, continue checking
-          continue;
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error detecting/saving workflow:', error.message);
-      console.error('❌ Stack:', error.stack);
-      // Don't throw - we don't want to break the streaming if workflow detection fails
-    }
-  }
 }
