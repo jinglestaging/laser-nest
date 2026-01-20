@@ -15,7 +15,7 @@ export class TasksController {
   @Sse('task-sse')
   createTaskSSE(
     @Query('sessionId') sessionId: string,
-    @Query('prompt') prompt: string
+    @Query('prompt') prompt: string,
   ): Observable<MessageEvent> {
     return this.tasksService.createTaskSSE(sessionId, prompt);
   }

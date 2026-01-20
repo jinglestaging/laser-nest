@@ -37,22 +37,25 @@ export class TasksService {
     const subject = new Subject();
     const client = this.anchorbrowserService.getAnchorClient();
 
-    client.agent.task(prompt, {
-      sessionId,
-      taskOptions: {
-        provider: 'groq',
-        model: 'openai/gpt-oss-120b',
-        onAgentStep: (executionStep) => {
-          subject.next({ data: { type: 'step', step: executionStep } });
+    client.agent
+      .task(prompt, {
+        sessionId,
+        taskOptions: {
+          provider: 'groq',
+          model: 'openai/gpt-oss-120b',
+          onAgentStep: (executionStep) => {
+            subject.next({ data: { type: 'step', step: executionStep } });
+          },
         },
-      },
-    }).then((result) => {
-      subject.next({ data: { type: 'complete', result } });
-      setTimeout(() => subject.complete(), 100);
-    }).catch((error) => {
-      subject.next({ data: { type: 'error', error: error.message } });
-      setTimeout(() => subject.complete(), 100);
-    });
+      })
+      .then((result) => {
+        subject.next({ data: { type: 'complete', result } });
+        setTimeout(() => subject.complete(), 100);
+      })
+      .catch((error) => {
+        subject.next({ data: { type: 'error', error: error.message } });
+        setTimeout(() => subject.complete(), 100);
+      });
 
     return subject.asObservable();
   }
