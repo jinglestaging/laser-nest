@@ -4,8 +4,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
 import { SupabaseService } from 'src/supabase/supabase.service';
+import { OpenAiService } from 'src/openai/openai.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 
@@ -14,16 +14,47 @@ export class WorkflowsService {
   constructor(
     private readonly configService: ConfigService,
     private readonly supabaseService: SupabaseService,
+    private readonly openAiService: OpenAiService,
   ) {}
+
+  private async generateWorkflowName(workflowData: string): Promise<string> {
+    try {
+      const prompt = `Analyze this workflow description and create a short, practical name (2-4 words) that describes what the AI workflow does: "${workflowData}"
+
+Examples:
+- "Read resume and fill donation form" → "Resume donation form"
+- "Search products and add to cart" → "Product cart automation"
+- "Extract data from website" → "Website data extraction"
+
+Return only the name, no quotes or extra text.`;
+
+      const completion = await this.openAiService.createChatCompletion({
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 30,
+        temperature: 0.3,
+      });
+
+      const name = completion.choices[0]?.message?.content?.trim();
+      if (name && name.length <= 50) return name;
+    } catch (error) {
+      console.error('OpenAI name generation failed:', error);
+    }
+
+    return 'AI Workflow';
+  }
 
   async createWorkflow(userId: string, createWorkflowDto: CreateWorkflowDto) {
     const supabase = this.supabaseService.getClient();
+
+    const workflowName = await this.generateWorkflowName(
+      createWorkflowDto.workflowData,
+    );
 
     const { data, error } = await supabase
       .from('workflows')
       .insert({
         user_id: userId,
-        name: createWorkflowDto.name || 'Untitled Workflow',
+        name: workflowName,
         description: createWorkflowDto.description,
         workflow_data: createWorkflowDto.workflowData,
       })
