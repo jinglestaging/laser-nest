@@ -7,6 +7,7 @@ CREATE TABLE workflows (
   user_id         UUID NOT NULL,
   name            TEXT,
   description     TEXT,
+  url             TEXT,
   workflow_data   TEXT,
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   updated_at      TIMESTAMPTZ DEFAULT NOW(),

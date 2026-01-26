@@ -1,4 +1,4 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsUrl } from 'class-validator';
 
 export class CreateWorkflowDto {
   @IsOptional()
@@ -8,6 +8,11 @@ export class CreateWorkflowDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsUrl()
+  url?: string;
 
   @IsString()
   workflowData: string;

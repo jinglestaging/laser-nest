@@ -1,39 +1,38 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { SupabaseService } from '../supabase/supabase.service';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { AnchorbrowserService } from '../anchorbrowser/anchorbrowser.service';
 import { Observable, Subject } from 'rxjs';
 
 @Injectable()
 export class TasksService {
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly supabaseService: SupabaseService,
-    private readonly anchorbrowserService: AnchorbrowserService,
-  ) {}
+  constructor(private readonly anchorbrowserService: AnchorbrowserService) {}
 
   async createSession() {
     const client = this.anchorbrowserService.getAnchorClient();
-    const session = await client.sessions.create();
 
-    if (!session.data) {
-      throw new Error('Failed to create session');
+    try {
+      const { data } = await client.sessions.create();
+
+      if (!data?.id || !data?.live_view_url) {
+        throw new HttpException(
+          'Invalid session data: missing sessionId or liveViewUrl',
+          HttpStatus.BAD_GATEWAY,
+        );
+      }
+
+      return {
+        sessionId: data.id,
+        liveViewUrl: data.live_view_url,
+      };
+    } catch (error: unknown) {
+      throw this.toHttpException(error);
     }
-
-    const liveViewUrl = session.data.live_view_url;
-    const sessionId = session.data.id;
-
-    if (!sessionId || !liveViewUrl) {
-      throw new Error('Invalid session data: missing sessionId or liveViewUrl');
-    }
-
-    return {
-      sessionId,
-      liveViewUrl,
-    };
   }
 
-  createTaskSSE(sessionId: string, prompt: string): Observable<any> {
+  createTaskSSE(
+    sessionId: string,
+    prompt: string,
+    url: string,
+  ): Observable<any> {
     const subject = new Subject();
     const client = this.anchorbrowserService.getAnchorClient();
 
@@ -43,6 +42,7 @@ export class TasksService {
         taskOptions: {
           provider: 'groq',
           model: 'openai/gpt-oss-120b',
+          url,
           onAgentStep: (executionStep) => {
             subject.next({ data: { type: 'step', step: executionStep } });
           },
@@ -58,5 +58,33 @@ export class TasksService {
       });
 
     return subject.asObservable();
+  }
+
+  private toHttpException(error: unknown): HttpException {
+    const anchorError = error as {
+      status?: number | string;
+      statusCode?: number | string;
+      message?: string;
+      error?: { message?: string };
+    };
+
+    const statusValue =
+      anchorError.status ??
+      anchorError.statusCode ??
+      HttpStatus.INTERNAL_SERVER_ERROR;
+
+    const status =
+      typeof statusValue === 'number'
+        ? statusValue
+        : Number.isFinite(Number(statusValue))
+          ? Number(statusValue)
+          : HttpStatus.INTERNAL_SERVER_ERROR;
+
+    const message =
+      anchorError.error?.message ??
+      anchorError.message ??
+      'Failed to create session';
+
+    return new HttpException(message, status);
   }
 }

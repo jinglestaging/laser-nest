@@ -56,6 +56,7 @@ Return only the name, no quotes or extra text.`;
         user_id: userId,
         name: workflowName,
         description: createWorkflowDto.description,
+        url: createWorkflowDto.url,
         workflow_data: createWorkflowDto.workflowData,
       })
       .select()
@@ -115,6 +116,7 @@ Return only the name, no quotes or extra text.`;
       .update({
         name: updateWorkflowDto.name,
         description: updateWorkflowDto.description,
+        url: updateWorkflowDto.url,
         workflow_data: updateWorkflowDto.workflowData,
       })
       .eq('id', workflowId)

@@ -5,4 +5,5 @@ export class WorkflowResponseDto {
   prompt: string;
   is_ready: boolean;
   clarification_questions: string[];
+  url?: string;
 }
