@@ -1,10 +1,14 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { AnchorbrowserService } from '../anchorbrowser/anchorbrowser.service';
+import { ExecutionsService } from '../executions/executions.service';
 import { Observable, Subject } from 'rxjs';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly anchorbrowserService: AnchorbrowserService) {}
+  constructor(
+    private readonly anchorbrowserService: AnchorbrowserService,
+    private readonly executionsService: ExecutionsService,
+  ) {}
 
   async createSession() {
     const client = this.anchorbrowserService.getAnchorClient();
@@ -32,30 +36,68 @@ export class TasksService {
     sessionId: string,
     prompt: string,
     url: string,
+    userId: string,
+    workflowId: string,
   ): Observable<any> {
     const subject = new Subject();
     const client = this.anchorbrowserService.getAnchorClient();
 
-    client.agent
-      .task(prompt, {
-        sessionId,
-        taskOptions: {
-          provider: 'groq',
-          model: 'openai/gpt-oss-120b',
-          url,
-          onAgentStep: (executionStep) => {
-            subject.next({ data: { type: 'step', step: executionStep } });
+    void (async () => {
+      let executionId: string | null = null;
+      const inputPayload = JSON.stringify({ sessionId, prompt, url });
+
+      try {
+        const execution = await this.executionsService.createExecution(
+          userId,
+          workflowId,
+          inputPayload,
+        );
+        executionId = execution.id;
+      } catch (error) {
+        subject.next({
+          data: { type: 'error', error: 'Failed to create execution' },
+        });
+        setTimeout(() => subject.complete(), 100);
+        return;
+      }
+
+      client.agent
+        .task(prompt, {
+          sessionId,
+          taskOptions: {
+            provider: 'groq',
+            model: 'openai/gpt-oss-120b',
+            url,
+            onAgentStep: (executionStep) => {
+              subject.next({ data: { type: 'step', step: executionStep } });
+            },
           },
-        },
-      })
-      .then((result) => {
-        subject.next({ data: { type: 'complete', result } });
-        setTimeout(() => subject.complete(), 100);
-      })
-      .catch((error) => {
-        subject.next({ data: { type: 'error', error: error.message } });
-        setTimeout(() => subject.complete(), 100);
-      });
+        })
+        .then((result) => {
+          if (executionId) {
+            void this.executionsService.completeExecution(
+              userId,
+              executionId,
+              'success',
+              JSON.stringify(result),
+            );
+          }
+          subject.next({ data: { type: 'complete', result } });
+          setTimeout(() => subject.complete(), 100);
+        })
+        .catch((error) => {
+          if (executionId) {
+            void this.executionsService.completeExecution(
+              userId,
+              executionId,
+              'failure',
+              error?.message ?? String(error),
+            );
+          }
+          subject.next({ data: { type: 'error', error: error.message } });
+          setTimeout(() => subject.complete(), 100);
+        });
+    })();
 
     return subject.asObservable();
   }

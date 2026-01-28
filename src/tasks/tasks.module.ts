@@ -4,9 +4,15 @@ import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { AnchorbrowserModule } from '../anchorbrowser/anchorbrowser.module';
+import { ExecutionsModule } from '../executions/executions.module';
 
 @Module({
-  imports: [ConfigModule, SupabaseModule, AnchorbrowserModule],
+  imports: [
+    ConfigModule,
+    SupabaseModule,
+    AnchorbrowserModule,
+    ExecutionsModule,
+  ],
   controllers: [TasksController],
   providers: [TasksService],
 })

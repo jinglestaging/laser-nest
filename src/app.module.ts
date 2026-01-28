@@ -12,6 +12,7 @@ import { ChatModule } from './chat/chat.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 import { TasksModule } from './tasks/tasks.module';
 import { AnchorbrowserModule } from './anchorbrowser/anchorbrowser.module';
+import { ExecutionsModule } from './executions/executions.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { AnchorbrowserModule } from './anchorbrowser/anchorbrowser.module';
     WorkflowsModule,
     TasksModule,
     AnchorbrowserModule,
+    ExecutionsModule,
   ],
   controllers: [],
   providers: [],

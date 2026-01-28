@@ -1,0 +1,101 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Build and Development Commands
+
+```bash
+# Install dependencies
+pnpm install
+
+# Development (watch mode)
+pnpm start:dev
+
+# Build
+pnpm build
+
+# Run tests
+pnpm test
+pnpm test:watch        # watch mode
+pnpm test -- path/to/file.test.ts  # single test file
+
+# Linting and formatting
+pnpm lint
+pnpm format
+
+# Type checking
+pnpm type-check
+```
+
+## Architecture Overview
+
+This is a **NestJS backend** using **Supabase** for database and authentication, with **Stripe** for payments.
+
+### Key Modules
+
+- **supabase/** - Core Supabase client; all database operations go through `SupabaseService.getClient()`
+- **auth/** - Supabase JWT validation via `SupabaseAuthGuard`; user extraction via `@GetUser()` decorator
+- **users/** - **LOCKED MODULE** - Do not modify (see restrictions below)
+- **chat/** - AI chat functionality using OpenAI SDK
+- **workflows/** - Workflow management
+- **tasks/** - Task management
+- **executions/** - Workflow execution tracking
+- **anchorbrowser/** - Browser automation integration
+- **stripe/** - Payment processing
+- **email/** - Transactional emails using Handlebars templates in `email/templates/`
+
+### Controller-Service Pattern
+
+Controllers delegate to services; no business logic in controllers:
+
+```typescript
+@Controller('items')
+export class ItemsController {
+  constructor(private readonly itemsService: ItemsService) {}
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.itemsService.findOne(id);
+  }
+}
+```
+
+### Authentication Pattern
+
+```typescript
+@UseGuards(SupabaseAuthGuard)
+@Get('profile')
+getProfile(@GetUser() user: any) {
+  return this.usersService.findOne(user.id);
+}
+```
+
+## Critical Restrictions
+
+### Users Module is LOCKED
+
+Do not modify anything in `/src/users/`:
+- No new routes, tables, or database queries
+- No changes to existing responses or service methods
+
+### Database Schema Requirements
+
+All tables must follow:
+- **Table names**: `snake_case` (e.g., `user_profiles`, not `userProfiles`)
+- **Column names**: `snake_case` (e.g., `user_id`, `created_at`)
+- **Primary key**: `id UUID PRIMARY KEY DEFAULT uuid_generate_v4()`
+- **Foreign keys**: Use `_id` suffix (e.g., `user_id`)
+- **Timestamps**: Always include `created_at` and `updated_at` with `TIMESTAMPTZ DEFAULT NOW()`
+- **RLS**: Enable Row Level Security on user-specific tables with appropriate policies
+
+## Test File Pattern
+
+Test files use `*.test.ts` suffix (not `*.spec.ts`). Jest root is `src/`.
+
+## Module Generation
+
+```bash
+nest g module <name>
+nest g service <name>
+nest g controller <name>
+```
