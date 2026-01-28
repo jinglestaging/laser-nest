@@ -1,45 +1,59 @@
 import Stripe from 'stripe';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class StripeService {
+export class StripeService implements OnModuleInit {
+  private readonly logger = new Logger(StripeService.name);
   private stripe: Stripe;
-  private configService: ConfigService;
+  private webhookSecret: string;
 
-  constructor(configService: ConfigService) {
-    this.configService = configService;
-    this.stripe = new Stripe(
-      configService.get<string>('STRIPE_SECRET_KEY') || '',
-      {
-        apiVersion: '2025-12-15.clover',
-      },
+  constructor(private readonly configService: ConfigService) {
+    const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
+    if (!secretKey) {
+      throw new Error('STRIPE_SECRET_KEY is required');
+    }
+
+    this.stripe = new Stripe(secretKey, {
+      apiVersion: '2025-12-15.clover',
+    });
+
+    const webhookSecret = this.configService.get<string>(
+      'STRIPE_SECRET_WEBHOOK',
     );
+    if (!webhookSecret) {
+      throw new Error('STRIPE_SECRET_WEBHOOK is required');
+    }
+    this.webhookSecret = webhookSecret;
   }
 
-  getStripe() {
+  onModuleInit(): void {
+    this.logger.log('Stripe service initialized');
+  }
+
+  getStripe(): Stripe {
     return this.stripe;
   }
 
-  constructEvent(payload: Buffer, signature: string) {
+  constructEvent(payload: Buffer, signature: string): Stripe.Event {
     return this.stripe.webhooks.constructEvent(
       payload,
       signature,
-      this.configService.get<string>('STRIPE_SECRET_WEBHOOK') || '',
+      this.webhookSecret,
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async handleWebhookEvent(rawBody: Buffer, signature: string) {
+  handleWebhookEvent(rawBody: Buffer, signature: string): void {
     const event = this.constructEvent(rawBody, signature);
 
     switch (event.type) {
-      case 'checkout.session.completed':
-        ///
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        this.logger.log(`Checkout completed for session: ${session.id}`);
         break;
-      // Add more event handlers as needed
+      }
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        this.logger.debug(`Unhandled event type: ${event.type}`);
     }
   }
 }

@@ -1,9 +1,9 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
+  InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from 'src/supabase/supabase.service';
 import { OpenAiService } from 'src/openai/openai.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
@@ -11,8 +11,9 @@ import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 
 @Injectable()
 export class WorkflowsService {
+  private readonly logger = new Logger(WorkflowsService.name);
+
   constructor(
-    private readonly configService: ConfigService,
     private readonly supabaseService: SupabaseService,
     private readonly openAiService: OpenAiService,
   ) {}
@@ -37,7 +38,7 @@ Return only the name, no quotes or extra text.`;
       const name = completion.choices[0]?.message?.content?.trim();
       if (name && name.length <= 50) return name;
     } catch (error) {
-      console.error('OpenAI name generation failed:', error);
+      this.logger.warn('OpenAI name generation failed', error);
     }
 
     return 'AI Workflow';
@@ -50,6 +51,7 @@ Return only the name, no quotes or extra text.`;
       createWorkflowDto.workflowData,
     );
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const { data, error } = await supabase
       .from('workflows')
       .insert({
@@ -63,8 +65,8 @@ Return only the name, no quotes or extra text.`;
       .single();
 
     if (error) {
-      console.error('Error creating workflow:', error);
-      throw new BadRequestException('Failed to create workflow');
+      this.logger.error('Error creating workflow', error);
+      throw new InternalServerErrorException('Failed to create workflow');
     }
 
     return data;
@@ -80,8 +82,8 @@ Return only the name, no quotes or extra text.`;
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching workflows:', error);
-      throw new BadRequestException('Failed to fetch workflows');
+      this.logger.error('Error fetching workflows', error);
+      throw new InternalServerErrorException('Failed to fetch workflows');
     }
 
     return data;
@@ -141,7 +143,8 @@ Return only the name, no quotes or extra text.`;
       .eq('user_id', userId);
 
     if (error) {
-      throw new BadRequestException('Failed to delete workflow');
+      this.logger.error('Error deleting workflow', error);
+      throw new InternalServerErrorException('Failed to delete workflow');
     }
 
     return { message: 'Workflow deleted successfully' };

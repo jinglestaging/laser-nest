@@ -1,23 +1,43 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as handlebars from 'handlebars';
 import { ConfigService } from '@nestjs/config';
 
+export interface EmailContext {
+  [key: string]: string | number | boolean | undefined;
+}
+
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
+  private readonly smtpUser: string;
+  private readonly smtpHost: string;
+  private readonly fromName: string;
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
+    const smtpUser = this.configService.get<string>('FORPSI_SMTP_USER');
+    const smtpPassword = this.configService.get<string>('FORPSI_SMTP_PASSWORD');
+
+    if (!smtpUser || !smtpPassword) {
+      throw new Error('FORPSI_SMTP_USER and FORPSI_SMTP_PASSWORD are required');
+    }
+
+    this.smtpUser = smtpUser;
+    this.smtpHost =
+      this.configService.get<string>('SMTP_HOST') ?? 'smtp.forpsi.com';
+    this.fromName =
+      this.configService.get<string>('EMAIL_FROM_NAME') ?? '01 Webs';
+
     this.transporter = nodemailer.createTransport({
-      host: 'smtp.forpsi.com',
+      host: this.smtpHost,
       port: 465,
       secure: true,
       auth: {
-        user: this.configService.get<string>('FORPSI_SMTP_USER'),
-        pass: this.configService.get<string>('FORPSI_SMTP_PASSWORD'),
+        user: smtpUser,
+        pass: smtpPassword,
       },
       connectionTimeout: 30_000,
       greetingTimeout: 15_000,
@@ -26,7 +46,11 @@ export class EmailService {
     });
   }
 
-  private compileTemplate(templateName: string, context: any): string {
+  onModuleInit(): void {
+    this.logger.log(`Email service initialized with host: ${this.smtpHost}`);
+  }
+
+  private compileTemplate(templateName: string, context: EmailContext): string {
     const templatePath = path.join(
       process.cwd(),
       'src',
@@ -39,7 +63,7 @@ export class EmailService {
       const template = handlebars.compile(templateSource);
       return template(context);
     } catch (error) {
-      console.error(`Error reading template file: ${templatePath}`, error);
+      this.logger.error(`Error reading template file: ${templatePath}`, error);
       throw new Error('Failed to compile email template');
     }
   }
@@ -48,14 +72,13 @@ export class EmailService {
     to: string,
     subject: string,
     templateName: string,
-    context: any,
+    context: EmailContext,
   ): Promise<void> {
     try {
       const html = this.compileTemplate(templateName, context);
 
-      // Send the email
       await this.transporter.sendMail({
-        from: `01 Webs <${this.configService.get<string>('FORPSI_SMTP_USER')}>`,
+        from: `${this.fromName} <${this.smtpUser}>`,
         to,
         subject,
         html,
@@ -63,7 +86,7 @@ export class EmailService {
 
       this.logger.log(`Email sent to ${to}`);
     } catch (error) {
-      this.logger.error('Error sending email:', error);
+      this.logger.error('Error sending email', error);
       throw new Error('Failed to send email');
     }
   }

@@ -1,10 +1,17 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { AnchorbrowserService } from '../anchorbrowser/anchorbrowser.service';
-import { ExecutionsService } from '../executions/executions.service';
+import {
+  ExecutionsService,
+  ExecutionStatus,
+} from '../executions/executions.service';
 import { Observable, Subject } from 'rxjs';
+
+const TASK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 @Injectable()
 export class TasksService {
+  private readonly logger = new Logger(TasksService.name);
+
   constructor(
     private readonly anchorbrowserService: AnchorbrowserService,
     private readonly executionsService: ExecutionsService,
@@ -38,8 +45,8 @@ export class TasksService {
     url: string,
     userId: string,
     workflowId: string,
-  ): Observable<any> {
-    const subject = new Subject();
+  ): Observable<{ data: Record<string, unknown> }> {
+    const subject = new Subject<{ data: Record<string, unknown> }>();
     const client = this.anchorbrowserService.getAnchorClient();
 
     void (async () => {
@@ -54,6 +61,7 @@ export class TasksService {
         );
         executionId = execution.id;
       } catch (error) {
+        this.logger.error('Failed to create execution', error);
         subject.next({
           data: { type: 'error', error: 'Failed to create execution' },
         });
@@ -61,42 +69,54 @@ export class TasksService {
         return;
       }
 
-      client.agent
-        .task(prompt, {
-          sessionId,
-          taskOptions: {
-            provider: 'groq',
-            model: 'openai/gpt-oss-120b',
-            url,
-            onAgentStep: (executionStep) => {
-              subject.next({ data: { type: 'step', step: executionStep } });
-            },
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Task timeout')), TASK_TIMEOUT_MS);
+      });
+
+      const taskPromise = client.agent.task(prompt, {
+        sessionId,
+        taskOptions: {
+          provider: 'groq',
+          model: 'openai/gpt-oss-120b',
+          url,
+          onAgentStep: (executionStep) => {
+            subject.next({ data: { type: 'step', step: executionStep } });
           },
-        })
-        .then((result) => {
-          if (executionId) {
-            void this.executionsService.completeExecution(
-              userId,
-              executionId,
-              'success',
-              JSON.stringify(result),
-            );
-          }
-          subject.next({ data: { type: 'complete', result } });
-          setTimeout(() => subject.complete(), 100);
-        })
-        .catch((error) => {
-          if (executionId) {
-            void this.executionsService.completeExecution(
-              userId,
-              executionId,
-              'failure',
-              error?.message ?? String(error),
-            );
-          }
-          subject.next({ data: { type: 'error', error: error.message } });
-          setTimeout(() => subject.complete(), 100);
-        });
+        },
+      });
+
+      try {
+        const result = await Promise.race([taskPromise, timeoutPromise]);
+        if (executionId) {
+          void this.executionsService.completeExecution(
+            userId,
+            executionId,
+            'success' as ExecutionStatus,
+            JSON.stringify(result),
+          );
+        }
+        subject.next({ data: { type: 'complete', result } });
+      } catch (error) {
+        const isTimeout =
+          error instanceof Error && error.message === 'Task timeout';
+        const status: ExecutionStatus = isTimeout ? 'timeout' : 'failure';
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+
+        this.logger.error(`Task ${status}: ${errorMessage}`);
+
+        if (executionId) {
+          void this.executionsService.completeExecution(
+            userId,
+            executionId,
+            status,
+            errorMessage,
+          );
+        }
+        subject.next({ data: { type: 'error', error: errorMessage } });
+      } finally {
+        setTimeout(() => subject.complete(), 100);
+      }
     })();
 
     return subject.asObservable();
